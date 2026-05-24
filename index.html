@@ -1104,9 +1104,9 @@ function createScheduleCard(shift) {
         listDiv.innerHTML = "";
         
         const userRole = sessionStorage.getItem("userRole");
-        const myGroups = sessionStorage.getItem("volGroup") || ""; // 獲取當前志工權限 [cite: 118]
+       const myGroups = sessionStorage.getItem("volGroup") || ""; 
         
-        const dates = Object.keys(globalCalendarData).sort();
+        const dates = Object.keys(globalCalendarData).sort(); 
         if(dates.length === 0) { listDiv.innerHTML = "目前沒有任何班表資料。"; return; }
 
         let hasAnyRendered = false;
