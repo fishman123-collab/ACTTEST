@@ -659,7 +659,7 @@
                     if (act.actType !== currentBookingType) return;
                     
                     // 判斷是否開啟「僅顯示空班」過濾 (若有名單內含代班請求則不篩除)
-                    const hasSubReq = act.bookedNames && act.bookedNames.some(name => name.includes('(代)'));
+                    const hasSubReq = act.bookedNames && act.bookedNames.some(name => name.includes('(徵求代班)'));
                     if (showOnlyEmptySense && act.remain <= 0 && !hasSubReq) return;
 
                     if (!groupedActs[act.date]) groupedActs[act.date] = [];
@@ -785,7 +785,7 @@
 
                     // 💡 2. 判斷是否開啟「僅顯示空班」過濾 (僅適用於一般活動，且若有人求代班則不濾除)
                     if (currentBookingType === '一般' && showOnlyEmptySense) {
-                        const hasSubReq = act.bookedNames && act.bookedNames.some(name => name.includes('(代)'));
+                        const hasSubReq = act.bookedNames && act.bookedNames.some(name => name.includes('(徵求代班)'));
                         if (act.remain <= 0 && !hasSubReq) return;
                     }
 
@@ -849,7 +849,7 @@
                     let nameTagHtml = '';
                     if (act.bookedNames && act.bookedNames.length > 0) {
                         let tags = act.bookedNames.map(name => {
-                            let isSub = name.includes('(代)');
+                            let isSub = name.includes('(徵求代班)');
                             // 如果是提出代班的志工，給予醒目的橘紅色框提示
                             let tagStyle = isSub 
                                 ? 'background:#fff0f5; color:#dc3545; border:1px dashed #fbc2dc; font-weight:bold;' 
