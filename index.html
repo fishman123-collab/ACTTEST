@@ -267,6 +267,12 @@
         showOnlyEmptySense = document.getElementById('chkSenseEmpty').checked;
         renderActivities(globalActivitiesCache); // 使用快取重新渲染
     }
+    let isSenseCompactMode = false; // 💡 新增：五感緊湊模式狀態
+
+    function toggleSenseCompact() {
+        isSenseCompactMode = document.getElementById('chkSenseCompact').checked;
+        renderActivities(globalActivitiesCache); // 使用快取重新渲染
+    }
 
     // 1. 在函式外面定義計時器變數 (確保全域可用)
     let loadingTimer1, loadingTimer2;
@@ -617,12 +623,17 @@
             const groupedActs = {};
             let subCardsHtml = '';
             
-            // 💡 1. 建立篩選器 UI
+            // 💡 1. 建立篩選器 UI (加入緊湊模式開關)
             let filterUiHtml = `
-                <div style="text-align: center; margin-bottom: 15px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                    <label style="cursor: pointer; font-weight: bold; color: #198754; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; margin: 0;">
+                <div style="text-align: center; margin-bottom: 15px; padding: 10px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px;">
+                    <label style="cursor: pointer; font-weight: bold; color: #198754; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; margin: 0;">
                         <input type="checkbox" id="chkSenseEmpty" onchange="toggleSenseEmpty()" ${showOnlyEmptySense ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
                         ✅ 僅顯示尚有空班的時段
+                    </label>
+                    <div style="border-top: 1px dashed #eee; width: 100%;"></div>
+                    <label style="cursor: pointer; font-weight: bold; color: #0056b3; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; margin: 0;">
+                        <input type="checkbox" id="chkSenseCompact" onchange="toggleSenseCompact()" ${isSenseCompactMode ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+                        🗜️ 開啟緊湊檢視 (4欄模式，可兩指縮放)
                     </label>
                 </div>
             `;
@@ -647,13 +658,13 @@
                 } else {
                     if (act.actType !== currentBookingType) return;
                     
-                    // 💡 2. 判斷是否開啟「僅顯示空班」過濾 (若有名單內含代班請求則不篩除)
+                    // 判斷是否開啟「僅顯示空班」過濾 (若有名單內含代班請求則不篩除)
                     const hasSubReq = act.bookedNames && act.bookedNames.some(name => name.includes('(代)'));
                     if (showOnlyEmptySense && act.remain <= 0 && !hasSubReq) return;
 
                     if (!groupedActs[act.date]) groupedActs[act.date] = [];
                     groupedActs[act.date].push(act);
-                    hasActivities = true; // 有通過篩選才算有資料
+                    hasActivities = true;
                 }
             });
 
@@ -662,18 +673,31 @@
                 return;
             }
 
-            listDiv.innerHTML += filterUiHtml; // 插入開關 UI
-            if (subCardsHtml) listDiv.innerHTML += subCardsHtml; // 插入代班卡片
+            listDiv.innerHTML += filterUiHtml; 
+            if (subCardsHtml) listDiv.innerHTML += subCardsHtml; 
 
-            // 💡 3. 渲染日期卡片並插入人名
+            // 💡 2. 根據是否開啟緊湊模式，定義動態 CSS 變數
+            const gridCols = isSenseCompactMode ? 'repeat(4, 1fr)' : '1fr 1fr';
+            const gridGap = isSenseCompactMode ? '4px' : '10px';
+            const cardPadding = isSenseCompactMode ? '8px 10px' : '12px 15px';
+            const titleSize = isSenseCompactMode ? '14px' : '16px';
+            const titlePadding = isSenseCompactMode ? '4px' : '8px';
+            const btnPadding = isSenseCompactMode ? '4px 2px' : '8px';
+            const btnRadius = isSenseCompactMode ? '4px' : '8px';
+            const timeSize = isSenseCompactMode ? '12.5px' : '15px';
+            const statusSize = isSenseCompactMode ? '11px' : '12px';
+            const nameSize = isSenseCompactMode ? '11px' : '12px';
+            const namePadding = isSenseCompactMode ? '2px' : '4px 2px';
+
+            // 💡 3. 渲染日期卡片
             for (const date in groupedActs) {
                 const slots = groupedActs[date];
                 const card = document.createElement('div');
                 card.className = 'activity-card';
                 card.style.borderLeftColor = '#e83e8c';
-                card.style.padding = '12px 15px';
+                card.style.padding = cardPadding; // 套用動態 Padding
 
-                let slotsHtml = `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">`;
+                let slotsHtml = `<div style="display: grid; grid-template-columns: ${gridCols}; gap: ${gridGap}; margin-top: 8px;">`;
                 
                 slots.forEach(act => {
                     const isFull = act.remain <= 0;
@@ -688,18 +712,19 @@
                     const actDetails = `${act.date} ${act.time} ${act.content}`;
                     const onclickFn = `submitBooking('${act.index}', '${actDetails}', '${act.actType}')`;
 
-                    // 產生下方人名標籤
-                    let nameTagHtml = `<div style="font-size: 11.5px; color: #999; text-align: center; padding: 3px; margin-top: 4px;">尚無人排班</div>`;
+                    // 產生下方人名標籤 (若無人排班，緊湊模式下顯示精簡文字)
+                    let emptyText = isSenseCompactMode ? '空班' : '尚無人排班';
+                    let nameTagHtml = `<div style="font-size: ${nameSize}; color: #999; text-align: center; padding: 2px; margin-top: 2px;">${emptyText}</div>`;
                     if (act.bookedNames && act.bookedNames.length > 0) {
-                         nameTagHtml = `<div style="font-size: 12px; color: #d63384; text-align: center; background: #fff0f5; border-radius: 4px; padding: 4px 2px; margin-top: 4px; border: 1px dashed #fbc2dc; font-weight: bold; word-break: break-all;">🙋‍♂️ ${act.bookedNames.join('<br>')}</div>`;
+                         nameTagHtml = `<div style="font-size: ${nameSize}; color: #d63384; text-align: center; background: #fff0f5; border-radius: 4px; padding: ${namePadding}; margin-top: 2px; border: 1px dashed #fbc2dc; font-weight: bold; word-break: break-all; line-height: 1.3;">🙋‍♂️ ${act.bookedNames.join('<br>')}</div>`;
                     }
 
-                    // 將按鈕與人名包裝在一起
+                    // 套用動態樣式至按鈕與文字
                     slotsHtml += `
                         <div style="display: flex; flex-direction: column;">
-                            <button class="btn-sm" style="background-color: ${btnColor}; color: white; border: none; padding: 8px; border-radius: 8px; cursor: ${btnDisabled ? 'not-allowed' : 'pointer'}; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.4; width: 100%;" onclick="${onclickFn}" ${btnDisabled}>
-                                <span style="font-weight: bold; font-size: 15px;">${act.time}</span>
-                                <span style="font-size: 12px; background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px; margin-top: 4px;">${btnText}</span>
+                            <button class="btn-sm" style="background-color: ${btnColor}; color: white; border: none; padding: ${btnPadding}; border-radius: ${btnRadius}; cursor: ${btnDisabled ? 'not-allowed' : 'pointer'}; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.3; width: 100%;" onclick="${onclickFn}" ${btnDisabled}>
+                                <span style="font-weight: bold; font-size: ${timeSize}; letter-spacing: -0.5px;">${act.time}</span>
+                                <span style="font-size: ${statusSize}; background: rgba(255,255,255,0.25); padding: 1px 4px; border-radius: 10px; margin-top: 2px; white-space: nowrap;">${btnText}</span>
                             </button>
                             ${nameTagHtml}
                         </div>
@@ -707,7 +732,7 @@
                 });
                 slotsHtml += `</div>`;
 
-                card.innerHTML = `<h4 style="margin: 0; color: #333; font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 8px;">📅 ${date}</h4>${slotsHtml}`;
+                card.innerHTML = `<h4 style="margin: 0; color: #333; font-size: ${titleSize}; border-bottom: 1px solid #eee; padding-bottom: ${titlePadding};">📅 ${date}</h4>${slotsHtml}`;
                 listDiv.appendChild(card);
             }
         }
