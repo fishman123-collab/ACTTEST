@@ -850,7 +850,7 @@
                     // 💡 2. 兩種模式的動態渲染
                     // ==========================================
                     if (isCompact) {
-                        // 【緊湊模式：一排一個活動，日期在最前】
+                        // 【緊湊模式：一排一個活動，按鈕在最前方】
                         let compactNameTags = act.bookedNames && act.bookedNames.length > 0
                             ? act.bookedNames.map(name => {
                                 let isSub = name.includes('(代)');
@@ -862,14 +862,16 @@
                         let shortBtnText = btnText.replace('✅ ', '').replace('❌ ', ''); // 簡化按鈕文字省空間
 
                         normalCardsHtml += `
-                            <div class="activity-card" style="display: flex; align-items: center; justify-content: space-between; border-left: 4px solid ${borderColor}; background-color: ${bgColor}; padding: 8px 10px; margin-bottom: 0; border-radius: 6px; gap: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <div class="activity-card" style="display: flex; align-items: center; justify-content: flex-start; border-left: 4px solid ${borderColor}; background-color: ${bgColor}; padding: 8px 10px; margin-bottom: 0; border-radius: 6px; gap: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                                
+                                <button class="btn-sm" style="background-color: ${btnColor}; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: ${btnDisabled ? 'not-allowed' : 'pointer'}; font-size: 13px; font-weight: bold; white-space: nowrap; flex-shrink: 0;" onclick="${onclickFn}" ${btnDisabled}>${shortBtnText}</button>
+                                
                                 <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px; flex: 1; font-size: 13.5px; line-height: 1.4;">
-                                    <span style="font-weight: bold; color: #333; white-space: nowrap; min-width: 120px;">📅 ${act.date} ${act.time}</span>
+                                    <span style="font-weight: bold; color: #333; white-space: nowrap;">📅 ${act.date} ${act.time}</span>
                                     <span style="font-weight: bold; color: #0056b3; white-space: nowrap;">${act.content}</span>
                                     <span style="color: ${isFull ? '#dc3545' : '#28a745'}; white-space: nowrap; font-weight: bold;">[剩餘 ${act.remain}]</span>
                                     <span style="display: flex; gap: 4px; align-items: center; font-size: 12.5px;">👥 ${compactNameTags}</span>
                                 </div>
-                                <button class="btn-sm" style="background-color: ${btnColor}; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: ${btnDisabled ? 'not-allowed' : 'pointer'}; font-size: 13px; font-weight: bold; white-space: nowrap; flex-shrink: 0;" onclick="${onclickFn}" ${btnDisabled}>${shortBtnText}</button>
                             </div>
                         `;
                     } else {
