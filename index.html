@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -1309,11 +1309,6 @@
         }
         document.getElementById('myScheduleFilter').value = 'all';
         fetchMySchedule();
-    } else listDiv.innerHTML = "讀取失敗：" + data.message;
-        }).catch(err => { 
-            filterDropdown.disabled = false; // 🔓 【新增】就算發生錯誤也要解鎖
-            listDiv.innerHTML = "網路錯誤，無法讀取您的班表。"; 
-        });
     }
 
     // 【升級】帶有前端類別篩選功能的 render
