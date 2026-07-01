@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -1280,8 +1280,9 @@
         filterDropdown.disabled = true; // ⏳ 【新增】鎖定下拉選單
         
         const lineId = sessionStorage.getItem("volLineId");
+        const mode = sessionStorage.getItem("isVolHistoryMode") === "true" ? "history" : "future";
 
-        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getMySchedule", lineId: lineId }) })
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getMySchedule", lineId: lineId, mode: mode }) })
         .then(res => res.json())
         .then(data => {
             filterDropdown.disabled = false; // 🔓 【新增】解鎖下拉選單
@@ -1289,6 +1290,26 @@
                 globalMyShifts = data.data; // 存入全域變數
                 renderMySchedule(); // 呼叫無參數的 render
             } else listDiv.innerHTML = "讀取失敗：" + data.message;
+        }).catch(err => { 
+            filterDropdown.disabled = false; // 🔓 【新增】就算發生錯誤，也要解鎖
+            listDiv.innerHTML = "網路錯誤，無法讀取您的班表。"; 
+        });
+    }
+
+    function toggleMyScheduleMode() {
+        const isHistory = sessionStorage.getItem("isVolHistoryMode") === "true";
+        sessionStorage.setItem("isVolHistoryMode", !isHistory);
+        const btn = document.getElementById('myScheduleModeBtn');
+        if (!isHistory) {
+            btn.innerHTML = "🔄 切換為未來班表";
+            btn.style.backgroundColor = "#ff9800";
+        } else {
+            btn.innerHTML = "🔄 切換為歷史班表";
+            btn.style.backgroundColor = "#17a2b8";
+        }
+        document.getElementById('myScheduleFilter').value = 'all';
+        fetchMySchedule();
+    } else listDiv.innerHTML = "讀取失敗：" + data.message;
         }).catch(err => { 
             filterDropdown.disabled = false; // 🔓 【新增】就算發生錯誤也要解鎖
             listDiv.innerHTML = "網路錯誤，無法讀取您的班表。"; 
@@ -1837,3 +1858,6 @@ function createScheduleCard(shift) {
 
 </body>
 </html>
+
+
+
