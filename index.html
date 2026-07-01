@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -287,6 +287,13 @@
         <select id="calendarFilter" class="filter-select" onchange="renderCalendar()">
             </select>
 
+        <div style="text-align: center; margin-top: -5px; margin-bottom: 15px; padding: 8px 10px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; font-size: 14.5px; color: #555; margin: 0;">
+                <input type="checkbox" id="chkCalendarCompact" onchange="toggleCalendarCompact()" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                📐 啟動緊湊模式 (縮小版面/字型)
+            </label>
+        </div>
+
         <div id="calendarList">讀取中...</div>
     </div>
 
@@ -356,6 +363,12 @@
     function toggleGenCompact() {
         isGenCompactMode = document.getElementById('chkGenCompact').checked;
         renderActivities(globalActivitiesCache); // 使用快取重新渲染
+    }
+
+    let isCalendarCompactMode = false; // 💡 新增：總班表緊湊模式狀態
+    function toggleCalendarCompact() {
+        isCalendarCompactMode = document.getElementById('chkCalendarCompact').checked;
+        renderCalendar(); // 重新渲染總班表
     }
 
     // 1. 在函式外面定義計時器變數 (確保全域可用)
@@ -1596,10 +1609,20 @@ function createScheduleCard(shift) {
         listDiv.innerHTML = "";
         
         const userRole = sessionStorage.getItem("userRole");
-       const myGroups = sessionStorage.getItem("volGroup") || ""; 
+        const myGroups = sessionStorage.getItem("volGroup") || ""; 
         
         const dates = Object.keys(globalCalendarData).sort(); 
         if(dates.length === 0) { listDiv.innerHTML = "目前沒有任何班表資料。"; return; }
+
+        const isCompact = isCalendarCompactMode;
+        const cardPadding = isCompact ? '5px 10px' : '10px 15px';
+        const cardMargin = isCompact ? '6px 0' : '12px 0';
+        const titleSize = isCompact ? '13.5px' : '15px';
+        const titleMargin = isCompact ? '0 0 4px 0' : '0 0 8px 0';
+        const tagLineHeight = isCompact ? '1.6' : '2.2';
+        const tagPadding = isCompact ? '2px 6px' : '4px 10px';
+        const tagFontSize = isCompact ? '12px' : '13px';
+        const tagMargin = isCompact ? '1px 3px 1px 0' : '2px 5px 2px 0';
 
         let hasAnyRendered = false;
         dates.forEach(date => {
@@ -1642,12 +1665,20 @@ function createScheduleCard(shift) {
             const dateHeader = document.createElement('div');
             dateHeader.className = 'date-header';
             dateHeader.innerText = `📅 ${date}`;
+            // 緊湊模式調整日期標題的大小與間距
+            if (isCompact) {
+                dateHeader.style.fontSize = '14px';
+                dateHeader.style.padding = '4px 8px';
+                dateHeader.style.marginTop = '10px';
+                dateHeader.style.marginBottom = '4px';
+            }
             listDiv.appendChild(dateHeader);
             
             filteredActs.forEach(act => {
                 const card = document.createElement('div');
                 card.className = 'activity-card';
-                card.style.padding = '10px 15px';
+                card.style.padding = cardPadding;
+                card.style.margin = cardMargin;
 
                 // 【新增】根據 actType 動態設定邊框與背景顏色
                 let borderColor = '#8e44ad'; 
@@ -1687,15 +1718,15 @@ function createScheduleCard(shift) {
                             
                             const isStaffHistoryMode = sessionStorage.getItem("isStaffHistoryMode") === "true";
                             if (isStaffHistoryMode) {
-                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default;">${statusText} ${v.name} ${slot.role}</span>`;
+                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default; padding: ${tagPadding}; font-size: ${tagFontSize}; margin: ${tagMargin};">${statusText} ${v.name} ${slot.role}</span>`;
                             } else {
-                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="staffManageVol('${v.name}', '${v.phone}', '${v.lineName}', '${v.recordRow}', '${safeDetails}')">${statusText} ${v.name} ${slot.role}</span>`;
+                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: ${tagPadding}; font-size: ${tagFontSize}; margin: ${tagMargin};" onclick="staffManageVol('${v.name}', '${v.phone}', '${v.lineName}', '${v.recordRow}', '${safeDetails}')">${statusText} ${v.name} ${slot.role}</span>`;
                             }
                         } else {
                             if (v.isSub) {
-                                tagsHtml += `<button class="btn-sm" style="background:#dc3545; color:white; border:none; border-radius:15px; padding:4px 10px; margin:2px 5px 2px 0; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="submitTakeSubstitute('${v.recordRow}', '${slot.actDetails}')">🆘 ${v.name} 徵求代班 (點擊接手)</button>`;
+                                tagsHtml += `<button class="btn-sm" style="background:#dc3545; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: ${tagFontSize};" onclick="submitTakeSubstitute('${v.recordRow}', '${slot.actDetails}')">🆘 ${v.name} 徵求代班 (點擊接手)</button>`;
                             } else {
-                                tagsHtml += `<span class="vol-tag" style="background:#e9ecef; color:#333; padding:4px 10px; border-radius:15px; margin:2px 5px 2px 0;">✔️ ${v.name} ${slot.role}</span>`;
+                                tagsHtml += `<span class="vol-tag" style="background:#e9ecef; color:#333; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize};">✔️ ${v.name} ${slot.role}</span>`;
                             }
                         }
                     });
@@ -1705,16 +1736,16 @@ function createScheduleCard(shift) {
                             let btnText = act.isPreview ? '👀 預覽中' : `➕ 點我填班 ${slot.role}`;
                             let btnColor = act.isPreview ? '#ff9800' : '#008CBA';
                             let disabledAttr = act.isPreview ? 'disabled' : '';
-                            tagsHtml += `<button class="btn-sm" style="background:${btnColor}; color:white; border:none; border-radius:15px; padding:4px 10px; margin:2px 5px 2px 0; cursor:pointer;" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')" ${disabledAttr}>${btnText}</button>`;
+                            tagsHtml += `<button class="btn-sm" style="background:${btnColor}; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-size: ${tagFontSize};" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')" ${disabledAttr}>${btnText}</button>`;
                         }
                     } else if (slot.remain > 0) {
-                        tagsHtml += `<span class="vol-tag" style="background:transparent; border: 1px dashed #ccc; color:#999; padding:4px 10px; border-radius:15px; margin:2px 5px 2px 0;">尚有 ${slot.remain} 個空缺 ${slot.role}</span>`;
+                        tagsHtml += `<span class="vol-tag" style="background:transparent; border: 1px dashed #ccc; color:#999; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize};">尚有 ${slot.remain} 個空缺 ${slot.role}</span>`;
                     }
                 });
 
                 card.innerHTML = `
-                    <h5 style="margin: 0 0 8px 0; color:#333; line-height: 1.4;">${act.time} - ${act.content}</h5>
-                    <div style="line-height: 2.2;">${tagsHtml}</div>
+                    <h5 style="margin: ${titleMargin}; color:#333; line-height: 1.4; font-size: ${titleSize};">${act.time} - ${act.content}</h5>
+                    <div style="line-height: ${tagLineHeight};">${tagsHtml}</div>
                 `;
                 listDiv.appendChild(card);
             });
@@ -1916,6 +1947,7 @@ function createScheduleCard(shift) {
 
 </body>
 </html>
+
 
 
 
