@@ -125,6 +125,7 @@
                 <label>預覽時間：</label><input type="datetime-local" id="gen_prev">
                 <label>第一階段 (限1班)：</label><input type="datetime-local" id="gen_p1">
                 <label>第二階段 (無限制)：</label><input type="datetime-local" id="gen_p2">
+                <button class="btn btn-staff" style="display:block; width:100%; margin-top:10px; padding: 10px;" onclick="saveSingleParam('gen')">💾 儲存 一般活動 設定</button>
             </div>
         </div>
 
@@ -135,6 +136,7 @@
                 <label>預覽時間：</label><input type="datetime-local" id="frog_prev">
                 <label>第一階段 (限1班)：</label><input type="datetime-local" id="frog_p1">
                 <label>第二階段 (無限制)：</label><input type="datetime-local" id="frog_p2">
+                <button class="btn btn-staff" style="display:block; width:100%; margin-top:10px; padding: 10px;" onclick="saveSingleParam('frog')">💾 儲存 蛙寶故事團 設定</button>
             </div>
         </div>
 
@@ -146,6 +148,26 @@
                 <label>第一階段 (限3班)：</label><input type="datetime-local" id="sense_p1">
                 <label>第二階段 (累計限6班)：</label><input type="datetime-local" id="sense_p2">
                 <label>第三階段 (無限制)：</label><input type="datetime-local" id="sense_p3">
+                
+                <hr style="border-top:1px dashed #ccc; margin:15px 0;">
+                <h4 style="color:#e83e8c; margin-top:0;">🛑 停班與休館設定</h4>
+                <div id="senseClosedList" style="margin-bottom:15px; font-size:14px;">
+                    <!-- 動態渲染停班清單 -->
+                </div>
+                <div style="background:#f8f9fa; padding:10px; border:1px solid #ddd; border-radius:5px; margin-bottom:15px;">
+                    <label style="margin-top:0; font-weight:bold;">新增停班日期：</label>
+                    <input type="date" id="senseClosedDate" onchange="updateSenseClosedSlotsUI()">
+                    
+                    <div id="senseClosedSlotsArea" style="display:none; margin-top:10px;">
+                        <label style="margin-bottom:5px; font-weight:bold;">選擇停班時段：</label>
+                        <div id="senseClosedSlotsCheckboxes" style="display:flex; flex-direction:column; gap:5px; font-size:14px;">
+                            <!-- 動態渲染 checkboxes -->
+                        </div>
+                        <button class="btn btn-staff" style="background-color:#28a745; width:100%; margin-top:10px; padding:8px;" onclick="addSenseClosedDate()">➕ 加入停班清單</button>
+                    </div>
+                </div>
+
+                <button class="btn btn-staff" style="display:block; width:100%; margin-top:10px; padding: 10px;" onclick="saveSingleParam('sense')">💾 儲存 五感探索區 設定</button>
             </div>
         </div>
 
@@ -166,10 +188,9 @@
                 <label>第二階段 (值班/種子+專長+0受訓)：</label><input type="datetime-local" id="train_p2">
                 <label>第三階段 (不分專長+0受訓)：</label><input type="datetime-local" id="train_p3">
                 <label>第四階段 (全面開放)：</label><input type="datetime-local" id="train_p4">
+                <button class="btn btn-staff" style="display:block; width:100%; margin-top:10px; padding: 10px;" onclick="saveSingleParam('maker_train')">💾 儲存 創客與培訓 設定</button>
             </div>
         </div>
-
-        <button class="btn btn-staff" onclick="saveParams()" style="display: block; margin-top: 15px;">💾 儲存所有設定</button>
         <p id="saveMsg" style="color: red; font-size: 14px;"></p>
     </div>
 
@@ -196,8 +217,11 @@
         <button class="btn" style="background-color: #6c757d; display: block; margin-bottom: 15px;" onclick="goBackToMain()">🔙 返回主選單</button>
         <h3>👤 我的班表 (已填班)</h3>
         
-        <select id="myScheduleFilter" class="filter-select" onchange="renderMySchedule()">
+        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <select id="myScheduleFilter" class="filter-select" style="flex:1;" onchange="renderMySchedule()">
             </select>
+            <button id="myScheduleModeBtn" class="btn" style="flex:1; background-color: #17a2b8; padding: 10px;" onclick="toggleMyScheduleMode()">🔄 切換為歷史班表</button>
+        </div>
 
         <div id="myActivityList">讀取清單中...</div>
     </div>
@@ -206,21 +230,41 @@
         <button class="btn" style="background-color: #6c757d; display: block; margin-bottom: 15px;" onclick="goBackToMain()">🔙 返回主選單</button>
         <h3>🗓️ 班表總覽</h3>
 
-        <div id="staffExportArea" style="display: none; background: #fff; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-            <h4 style="margin-top: 0; color: #333; margin-bottom: 12px;">📊 匯出排班報表</h4>
-            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                <div style="flex: 1;">
-                    <label style="font-size: 13px; font-weight: bold; color: #555;">起始日期：</label>
-                    <input type="date" id="exportStartDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-top: 4px;">
+        <div id="staffHistoryArea" class="menu-section" style="display: none; margin-bottom: 15px;">
+            <button class="menu-title" style="background-color: #17a2b8; color: white;" onclick="toggleMenu('history-content')"><span>🔍 歷史班表查詢</span> <span>▾</span></button>
+            <div class="menu-content" id="history-content" style="display: none; padding: 15px; background: #fff; border: 1px solid #ddd; border-top: none; border-radius: 0 0 5px 5px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px; font-weight: bold; color: #555;">開始：</label>
+                        <input type="date" id="historyStartDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-top: 4px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px; font-weight: bold; color: #555;">結束：</label>
+                        <input type="date" id="historyEndDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-top: 4px;">
+                    </div>
                 </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 13px; font-weight: bold; color: #555;">結束日期：</label>
-                    <input type="date" id="exportEndDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-top: 4px;">
-                </div>
+                <button class="btn-book" style="background-color: #17a2b8; margin-top: 5px;" onclick="loadHistoryCalendar()">查詢歷史紀錄</button>
+                <div style="text-align:center; margin-top:10px;"><a href="#" onclick="openCalendar(); return false;" style="color:#007bff; text-decoration:underline; font-size:14px;">返回未來班表總覽</a></div>
             </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-sm" style="flex: 1; background-color: #e83e8c; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;" onclick="exportReport('五感')">📥 匯出 五感</button>
-                <button class="btn-sm" style="flex: 1; background-color: #008CBA; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;" onclick="exportReport('一般')">📥 匯出 一般</button>
+        </div>
+
+        <div id="staffExportArea" class="menu-section" style="display: none; margin-bottom: 15px;">
+            <button class="menu-title" style="background-color: #6f42c1; color: white;" onclick="toggleMenu('export-content')"><span>📊 匯出排班報表</span> <span>▾</span></button>
+            <div class="menu-content" id="export-content" style="display: none; padding: 15px; background: #fff; border: 1px solid #ddd; border-top: none; border-radius: 0 0 5px 5px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px; font-weight: bold; color: #555;">起始日期：</label>
+                        <input type="date" id="exportStartDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-top: 4px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 13px; font-weight: bold; color: #555;">結束日期：</label>
+                        <input type="date" id="exportEndDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-top: 4px;">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-sm" style="flex: 1; background-color: #e83e8c; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;" onclick="exportReport('五感')">📥 匯出 五感</button>
+                    <button class="btn-sm" style="flex: 1; background-color: #008CBA; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; font-weight: bold;" onclick="exportReport('一般')">📥 匯出 一般</button>
+                </div>
             </div>
         </div>
         <p style="text-align:center; color:#666; font-size:14px;">(顯示本月起的所有班表與排班人員)</p>
@@ -441,6 +485,7 @@
     }
 
     function goBackToMain() {
+        document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('masterPanel').style.display = 'none';
         document.getElementById('myPanel').style.display = 'none';
         document.getElementById('calendarPanel').style.display = 'none';
@@ -451,6 +496,7 @@
     let currentBookingType = '一般';
     function openBooking(type) {
         currentBookingType = type;
+        document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('buttonArea').style.display = 'none';
         document.getElementById('masterPanel').style.display = 'block';
         document.getElementById('panelTitle').innerText = `📋 ${type}排班系統`;
@@ -468,6 +514,7 @@
     let currentMatchTab = 'pending';
 
     function openMakerMatch() {
+        document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('buttonArea').style.display = 'none';
         document.getElementById('makerMatchPanel').style.display = 'block';
         fetchMakerMatches();
@@ -1022,32 +1069,201 @@
                 document.getElementById('train_p3').value = d['train_p3'] || '';
                 document.getElementById('train_p4').value = d['train_p4'] || '';
                 document.getElementById('sense_p3').value = d['sense_p3'] || '';
+                
+                globalSenseClosedSettings = d.senseClosedSettings || [];
+                renderSenseClosedList();
+                
                 msg.innerText = ""; 
             } else { msg.innerText = "讀取設定失敗。"; }
         }).catch(err => { msg.innerText = "連線失敗。"; });
     }
 
-    function saveParams() {
-        const payload = { action: "saveParams" };
-        ['gen','frog','sense','maker','train'].forEach(k => {
-            if(document.getElementById(k+'_m')) payload[k+'_m'] = document.getElementById(k+'_m').value;
-            if(document.getElementById(k+'_prev')) payload[k+'_prev'] = document.getElementById(k+'_prev').value;
-            if(document.getElementById(k+'_p1')) payload[k+'_p1'] = document.getElementById(k+'_p1').value;
-            if(document.getElementById(k+'_p2')) payload[k+'_p2'] = document.getElementById(k+'_p2').value;
-        });
-        payload['train_p3'] = document.getElementById('train_p3').value;
-        payload['train_p4'] = document.getElementById('train_p4').value;
-        payload['sense_p3'] = document.getElementById('sense_p3').value;
+    function saveSingleParam(saveType) {
+        const payload = { action: "saveParams", saveType: saveType };
+        
+        // 依照傳入的分類，只抓取對應的 input 資料
+        if (saveType === 'gen') {
+            payload.gen_m = document.getElementById('gen_m').value;
+            payload.gen_prev = document.getElementById('gen_prev').value;
+            payload.gen_p1 = document.getElementById('gen_p1').value;
+            payload.gen_p2 = document.getElementById('gen_p2').value;
+        } else if (saveType === 'frog') {
+            payload.frog_m = document.getElementById('frog_m').value;
+            payload.frog_prev = document.getElementById('frog_prev').value;
+            payload.frog_p1 = document.getElementById('frog_p1').value;
+            payload.frog_p2 = document.getElementById('frog_p2').value;
+        } else if (saveType === 'sense') {
+            payload.sense_m = document.getElementById('sense_m').value;
+            payload.sense_prev = document.getElementById('sense_prev').value;
+            payload.sense_p1 = document.getElementById('sense_p1').value;
+            payload.sense_p2 = document.getElementById('sense_p2').value;
+            payload.sense_p3 = document.getElementById('sense_p3').value;
+            payload.senseClosedSettings = globalSenseClosedSettings;
+        } else if (saveType === 'maker_train') {
+            payload.maker_m = document.getElementById('maker_m').value;
+            payload.maker_prev = document.getElementById('maker_prev').value;
+            payload.maker_p1 = document.getElementById('maker_p1').value;
+            payload.maker_p2 = document.getElementById('maker_p2').value;
+            
+            payload.train_m = document.getElementById('train_m').value;
+            payload.train_prev = document.getElementById('train_prev').value;
+            payload.train_p1 = document.getElementById('train_p1').value;
+            payload.train_p2 = document.getElementById('train_p2').value;
+            payload.train_p3 = document.getElementById('train_p3').value;
+            payload.train_p4 = document.getElementById('train_p4').value;
+        }
 
         const msg = document.getElementById('saveMsg');
-        msg.innerText = "儲存中...";
+        msg.style.color = "#ff9800";
+        msg.innerText = "⏳ 儲存中...";
+        
         fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
         .then(res => res.json()).then(data => {
-            if (data.status === "success") { msg.style.color = "green"; msg.innerText = "✅ 儲存成功！"; }
-        }).catch(err => { msg.innerText = "儲存失敗。"; });
+            if (data.status === "success") { 
+                msg.style.color = "green"; msg.innerText = "✅ 儲存成功！"; 
+                setTimeout(() => { msg.innerText = ""; }, 4000); // 4秒後清除成功訊息
+            } else {
+                msg.style.color = "red"; msg.innerText = "❌ 儲存失敗。"; 
+            }
+        }).catch(err => { msg.style.color = "red"; msg.innerText = "連線失敗。"; });
+    }
+
+    function renderSenseClosedList() {
+        const listContainer = document.getElementById('senseClosedList');
+        if (!listContainer) return;
+        
+        // 取得當地時間的 YYYY-MM-DD
+        const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+        const today = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
+
+        let html = '<div style="font-weight:bold; margin-bottom:5px;">目前設定的未來停班：</div>';
+        let visibleCount = 0;
+        
+        globalSenseClosedSettings.forEach((setting, index) => {
+            if (setting.date >= today) {
+                html += `<div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 10px; border:1px solid #eee; border-radius:4px; margin-bottom:4px;">
+                            <div><span style="color:#e83e8c; font-weight:bold;">${setting.date}</span> : ${setting.slots}</div>
+                            <button onclick="removeSenseClosedDate(${index})" style="background:#dc3545; color:white; border:none; border-radius:4px; padding:2px 6px; cursor:pointer; font-size:12px;">❌ 刪除</button>
+                         </div>`;
+                visibleCount++;
+            }
+        });
+        
+        if (visibleCount === 0) {
+            html += '<div style="color:#888; font-style:italic;">尚無未來停班設定</div>';
+        }
+        
+        listContainer.innerHTML = html;
+    }
+
+    function removeSenseClosedDate(index) {
+        if (confirm("確定要刪除這筆停班設定嗎？")) {
+            globalSenseClosedSettings.splice(index, 1);
+            renderSenseClosedList();
+        }
+    }
+
+    function updateSenseClosedSlotsUI() {
+        const dateInput = document.getElementById('senseClosedDate').value;
+        const slotsArea = document.getElementById('senseClosedSlotsArea');
+        const checkboxesArea = document.getElementById('senseClosedSlotsCheckboxes');
+        
+        if (!dateInput) {
+            slotsArea.style.display = 'none';
+            return;
+        }
+        
+        const dateObj = new Date(dateInput);
+        const dayOfWeek = dateObj.getDay();
+        
+        if (dayOfWeek === 1) {
+            checkboxesArea.innerHTML = '<div style="color:#dc3545; font-weight:bold;">週一為固定休館日，無需設定停班。</div>';
+            slotsArea.style.display = 'block';
+            document.querySelector('#senseClosedSlotsArea button').style.display = 'none';
+            return;
+        }
+        
+        let slots = [];
+        if (dayOfWeek === 0) { // 星期日
+            slots = ["8:45-11:45", "9:30-12:30", "13:15-16:15", "14:15-17:15"];
+        } else { // 星期二至六
+            slots = ["8:45-11:45", "9:30-12:30", "13:45-16:45", "14:30-17:30"];
+        }
+        
+        let html = `
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="checkbox" value="全天" id="chkSlotAll" onchange="toggleAllSlots()"> <b>全天</b>
+            </label>
+            <hr style="margin:2px 0; border-top:1px solid #eee;">
+        `;
+        
+        slots.forEach((slot, i) => {
+            html += `
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                <input type="checkbox" value="${slot}" class="chkSlotSub"> 第 ${i+1} 時段 (${slot})
+            </label>`;
+        });
+        
+        checkboxesArea.innerHTML = html;
+        slotsArea.style.display = 'block';
+        document.querySelector('#senseClosedSlotsArea button').style.display = 'block';
+    }
+
+    function toggleAllSlots() {
+        const isAllChecked = document.getElementById('chkSlotAll').checked;
+        const subCheckboxes = document.querySelectorAll('.chkSlotSub');
+        subCheckboxes.forEach(chk => {
+            chk.checked = false;
+            chk.disabled = isAllChecked;
+        });
+    }
+
+    function addSenseClosedDate() {
+        const dateInput = document.getElementById('senseClosedDate').value;
+        if (!dateInput) {
+            alert("請先選擇日期！");
+            return;
+        }
+        
+        let selectedSlots = [];
+        const chkSlotAll = document.getElementById('chkSlotAll');
+        const isAllChecked = chkSlotAll ? chkSlotAll.checked : false;
+        
+        if (isAllChecked) {
+            selectedSlots.push("全天");
+        } else {
+            const subCheckboxes = document.querySelectorAll('.chkSlotSub');
+            subCheckboxes.forEach(chk => {
+                if (chk.checked) selectedSlots.push(chk.value);
+            });
+        }
+        
+        if (selectedSlots.length === 0) {
+            alert("請至少選擇一個時段或全天！");
+            return;
+        }
+        
+        const existingIndex = globalSenseClosedSettings.findIndex(s => s.date === dateInput);
+        if (existingIndex !== -1) {
+            if (!confirm(`該日期已有停班設定 (${globalSenseClosedSettings[existingIndex].slots})，是否要覆蓋？`)) {
+                return;
+            }
+            globalSenseClosedSettings[existingIndex].slots = selectedSlots.join(',');
+        } else {
+            globalSenseClosedSettings.push({ date: dateInput, slots: selectedSlots.join(',') });
+        }
+        
+        // 日期排序
+        globalSenseClosedSettings.sort((a, b) => a.date.localeCompare(b.date));
+        
+        renderSenseClosedList();
+        
+        document.getElementById('senseClosedDate').value = "";
+        document.getElementById('senseClosedSlotsArea').style.display = 'none';
     }
 
     document.getElementById('btn-my-schedule').addEventListener('click', function() {
+        document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('buttonArea').style.display = 'none';
         document.getElementById('myPanel').style.display = 'block';
         
@@ -1161,12 +1377,16 @@ function createScheduleCard(shift) {
     card.style.backgroundColor = bgColor;
 
     let btnHtml = '';
-    if (shift.status === '徵求代班') {
-        btnHtml = `<button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${shift.actDetails}')">🔙 撤回代班請求 (恢復值勤)</button>`;
-    } else if (shift.isDirectCancel) {
-        btnHtml = `<button class="btn-book" style="background-color: #dc3545;" onclick="submitAskSubstitute('${shift.recordRow}', '${shift.actDetails}', true)">直接取消 (名額釋出)</button>`;
-    } else {
-        btnHtml = `<button class="btn-book" style="background-color: #ff9800;" onclick="submitAskSubstitute('${shift.recordRow}', '${shift.actDetails}', false)">我要請假 (徵求代班)</button>`;
+    const isHistoryMode = sessionStorage.getItem("isVolHistoryMode") === "true";
+    
+    if (!isHistoryMode) {
+        if (shift.status === '徵求代班') {
+            btnHtml = `<button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${shift.actDetails}')">🔙 撤回代班請求 (恢復值勤)</button>`;
+        } else if (shift.isDirectCancel) {
+            btnHtml = `<button class="btn-book" style="background-color: #dc3545;" onclick="submitAskSubstitute('${shift.recordRow}', '${shift.actDetails}', true)">直接取消 (名額釋出)</button>`;
+        } else {
+            btnHtml = `<button class="btn-book" style="background-color: #ff9800;" onclick="submitAskSubstitute('${shift.recordRow}', '${shift.actDetails}', false)">我要請假 (徵求代班)</button>`;
+        }
     }
 
     card.innerHTML = `
@@ -1215,6 +1435,7 @@ function createScheduleCard(shift) {
     }
 
     function openCalendar() {
+        document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('buttonArea').style.display = 'none';
         document.getElementById('calendarPanel').style.display = 'block';
         
@@ -1225,12 +1446,20 @@ function createScheduleCard(shift) {
             exportArea.style.display = (userRole === 'staff') ? 'block' : 'none';
         }
         
+        const historyArea = document.getElementById('staffHistoryArea');
+        if (historyArea) {
+            historyArea.style.display = (userRole === 'staff') ? 'block' : 'none';
+        }
+        
         const filterDropdown = document.getElementById('calendarFilter');
         filterDropdown.value = 'all'; // 重置篩選器
         filterDropdown.disabled = true; // ⏳ 【新增】資料傳輸中，鎖定下拉選單，避免志工偷跑
         
         const listDiv = document.getElementById('calendarList');
         listDiv.innerHTML = "抓取班表中，請稍候...";
+        
+        // 重置為未來班表模式
+        sessionStorage.removeItem("isStaffHistoryMode");
         
         const lineId = sessionStorage.getItem("volLineId");
         fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getCalendarData", lineId: lineId }) })
@@ -1248,7 +1477,40 @@ function createScheduleCard(shift) {
         });
     }
 
-    // 【修改後的 renderCalendar 核心篩選邏輯】
+    function loadHistoryCalendar() {
+        const startDate = document.getElementById('historyStartDate').value;
+        const endDate = document.getElementById('historyEndDate').value;
+        
+        if (!startDate || !endDate) {
+            alert("請先選擇開始與結束日期！");
+            return;
+        }
+        
+        const listDiv = document.getElementById('calendarList');
+        listDiv.innerHTML = "查詢歷史班表中，請稍候...";
+        
+        // 標記目前為歷史模式
+        sessionStorage.setItem("isStaffHistoryMode", "true");
+        const lineId = sessionStorage.getItem("volLineId");
+        
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getCalendarData", lineId: lineId, startDate: startDate, endDate: endDate }) })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "success") {
+                globalCalendarData = data.data; // 存入全域變數
+                renderCalendar();
+            } else {
+                alert("查詢失敗：" + data.message);
+                listDiv.innerHTML = "";
+            }
+        })
+        .catch(err => {
+            alert("系統錯誤：" + err);
+            listDiv.innerHTML = "";
+        });
+    }
+
+    // 💡 修正：在 renderCalendar 增加篩選邏輯，並隱藏歷史模式的操作按鈕
     function renderCalendar() {
         const filterVal = document.getElementById('calendarFilter').value;
         const listDiv = document.getElementById('calendarList');
@@ -1343,8 +1605,13 @@ function createScheduleCard(shift) {
                             
                             // 【關鍵修正】把單引號、雙引號進行安全逸出，避免破壞 HTML onclick 語法
                             let safeDetails = slot.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-
-                            tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="staffManageVol('${v.name}', '${v.phone}', '${v.lineName}', '${v.recordRow}', '${safeDetails}')">${statusText} ${v.name} ${slot.role}</span>`;
+                            
+                            const isStaffHistoryMode = sessionStorage.getItem("isStaffHistoryMode") === "true";
+                            if (isStaffHistoryMode) {
+                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default;">${statusText} ${v.name} ${slot.role}</span>`;
+                            } else {
+                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="staffManageVol('${v.name}', '${v.phone}', '${v.lineName}', '${v.recordRow}', '${safeDetails}')">${statusText} ${v.name} ${slot.role}</span>`;
+                            }
                         } else {
                             if (v.isSub) {
                                 tagsHtml += `<button class="btn-sm" style="background:#dc3545; color:white; border:none; border-radius:15px; padding:4px 10px; margin:2px 5px 2px 0; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2);" onclick="submitTakeSubstitute('${v.recordRow}', '${slot.actDetails}')">🆘 ${v.name} 徵求代班 (點擊接手)</button>`;
