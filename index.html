@@ -223,6 +223,21 @@
             <button id="myScheduleModeBtn" class="btn" style="display: block; flex: 1; width: auto; background-color: #17a2b8; padding: 10px; margin: 0;" onclick="toggleMyScheduleMode()">🔄 切換為歷史班表</button>
         </div>
 
+        <!-- 【新增】志工查詢歷史班表之日期區段選擇器 -->
+        <div id="volHistoryDateArea" style="display: none; background: #fff; padding: 12px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 4px;">開始日期：</label>
+                    <input type="date" id="volHistoryStartDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; font-weight: bold; color: #555; display: block; margin-bottom: 4px;">結束日期：</label>
+                    <input type="date" id="volHistoryEndDate" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 14px;">
+                </div>
+            </div>
+            <button class="btn" style="display: block; background-color: #17a2b8; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer; text-align: center; font-weight: bold; width: 100%; margin: 0;" onclick="fetchMySchedule()">🔍 查詢個人歷史</button>
+        </div>
+
         <div id="myActivityList">讀取清單中...</div>
     </div>
 
@@ -1267,7 +1282,16 @@
         document.getElementById('buttonArea').style.display = 'none';
         document.getElementById('myPanel').style.display = 'block';
         
-        // 重置篩選器
+        // 重置篩選器與模式
+        sessionStorage.setItem("isVolHistoryMode", "false");
+        const btn = document.getElementById('myScheduleModeBtn');
+        if (btn) {
+            btn.innerHTML = "🔄 切換為歷史班表";
+            btn.style.backgroundColor = "#17a2b8";
+        }
+        const dateArea = document.getElementById('volHistoryDateArea');
+        if (dateArea) dateArea.style.display = 'none';
+        
         document.getElementById('myScheduleFilter').value = 'all';
         fetchMySchedule();
     });
@@ -1280,9 +1304,29 @@
         filterDropdown.disabled = true; // ⏳ 【新增】鎖定下拉選單
         
         const lineId = sessionStorage.getItem("volLineId");
-        const mode = sessionStorage.getItem("isVolHistoryMode") === "true" ? "history" : "future";
+        const isHistory = sessionStorage.getItem("isVolHistoryMode") === "true";
+        const mode = isHistory ? "history" : "future";
 
-        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getMySchedule", lineId: lineId, mode: mode }) })
+        const payload = { action: "getMySchedule", lineId: lineId, mode: mode };
+
+        if (isHistory) {
+            const startDate = document.getElementById('volHistoryStartDate').value;
+            const endDate = document.getElementById('volHistoryEndDate').value;
+            if (!startDate || !endDate) {
+                filterDropdown.disabled = false;
+                listDiv.innerHTML = "<p style='text-align:center; color:#ff4400; padding:20px;'>⚠️ 請先選擇開始與結束日期！</p>";
+                return;
+            }
+            if (new Date(startDate) > new Date(endDate)) {
+                filterDropdown.disabled = false;
+                listDiv.innerHTML = "<p style='text-align:center; color:#ff4400; padding:20px;'>⚠️ 開始日期不能大於結束日期！</p>";
+                return;
+            }
+            payload.startDate = startDate;
+            payload.endDate = endDate;
+        }
+
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) })
         .then(res => res.json())
         .then(data => {
             filterDropdown.disabled = false; // 🔓 【新增】解鎖下拉選單
@@ -1298,17 +1342,36 @@
 
     function toggleMyScheduleMode() {
         const isHistory = sessionStorage.getItem("isVolHistoryMode") === "true";
-        sessionStorage.setItem("isVolHistoryMode", !isHistory);
+        const newHistoryState = !isHistory;
+        sessionStorage.setItem("isVolHistoryMode", newHistoryState);
         const btn = document.getElementById('myScheduleModeBtn');
-        if (!isHistory) {
+        const dateArea = document.getElementById('volHistoryDateArea');
+        
+        if (newHistoryState) {
             btn.innerHTML = "🔄 切換為未來班表";
             btn.style.backgroundColor = "#ff9800";
+            if (dateArea) dateArea.style.display = 'block';
+            
+            // 給予預設日期區間：往前 3 個月到今天，讓志工有合理的區段可以選擇
+            const today = new Date();
+            const tzoffset = today.getTimezoneOffset() * 60000;
+            const todayStr = (new Date(Date.now() - tzoffset)).toISOString().slice(0, 10);
+            
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(today.getMonth() - 3);
+            const threeMonthsAgoStr = (new Date(threeMonthsAgo.getTime() - tzoffset)).toISOString().slice(0, 10);
+            
+            document.getElementById('volHistoryStartDate').value = threeMonthsAgoStr;
+            document.getElementById('volHistoryEndDate').value = todayStr;
+            
+            fetchMySchedule();
         } else {
             btn.innerHTML = "🔄 切換為歷史班表";
             btn.style.backgroundColor = "#17a2b8";
+            if (dateArea) dateArea.style.display = 'none';
+            document.getElementById('myScheduleFilter').value = 'all';
+            fetchMySchedule();
         }
-        document.getElementById('myScheduleFilter').value = 'all';
-        fetchMySchedule();
     }
 
     // 【升級】帶有前端類別篩選功能的 render
