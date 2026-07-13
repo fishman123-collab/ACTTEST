@@ -621,30 +621,52 @@
 
             // 待認領區：顯示可選擇的時段按鈕
             if (currentMatchTab === 'pending') {
-                slotsHtml += `<div style="font-size: 13px; color: #666; margin-bottom: 8px; font-weight:bold;">👉 請選擇您可配合的時段認領：</div>`;
-                item.slots.forEach(s => {
-                    if (s.d) {
-                        slotsHtml += `
-                        <div style="border: 1px solid #fbd38d; border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; background: #fffaf0;">
-                            <div>
-                                <span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 5px; font-size: 12px; margin-right: 8px;">${s.type}</span>
-                                <span style="font-weight: bold; color: #0056b3; font-size: 14px;">${s.d} ${s.t}</span>
-                            </div>
-                            <button class="btn-sm" style="background: #008CBA; color: white; border: none; border-radius: 5px; padding: 6px 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="submitMakerClaim(${item.rowId}, '${s.d}', '${s.t}', '${item.device}')">認領此時段</button>
-                        </div>`;
-                    }
-                });
+                if (item.isSub) {
+                    const actDetails = `${item.approvedDate} ${item.approvedTime} [預約] ${item.device} <br>👤 讀者：${item.readerName} (需求：${item.volReq})`;
+                    const safeDetails = actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                    slotsHtml += `
+                    <div style="font-size: 13px; color: #dc3545; margin-bottom: 8px; font-weight:bold;">🆘 此為志工徵求代班，點擊接手即可直接替補：</div>
+                    <div style="border: 1px solid #feb2b2; border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; background: #fff5f5;">
+                        <div>
+                            <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 5px; font-size: 12px; margin-right: 8px;">代班</span>
+                            <span style="font-weight: bold; color: #c53030; font-size: 14px;">${item.approvedDate} ${item.approvedTime}</span>
+                            <div style="font-size: 12px; color: #555; margin-top: 4px;">原志工：${item.assignedVol}</div>
+                        </div>
+                        <button class="btn-sm" style="background: #ff5722; color: white; border: none; border-radius: 5px; padding: 6px 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="submitTakeSubstitute('MAKER_${item.rowId}', '${safeDetails}')">接手此代班</button>
+                    </div>`;
+                } else {
+                    slotsHtml += `<div style="font-size: 13px; color: #666; margin-bottom: 8px; font-weight:bold;">👉 請選擇您可配合的時段認領：</div>`;
+                    item.slots.forEach(s => {
+                        if (s.d) {
+                            slotsHtml += `
+                            <div style="border: 1px solid #fbd38d; border-radius: 8px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; background: #fffaf0;">
+                                <div>
+                                    <span style="background: #6c757d; color: white; padding: 2px 6px; border-radius: 5px; font-size: 12px; margin-right: 8px;">${s.type}</span>
+                                    <span style="font-weight: bold; color: #0056b3; font-size: 14px;">${s.d} ${s.t}</span>
+                                </div>
+                                <button class="btn-sm" style="background: #008CBA; color: white; border: none; border-radius: 5px; padding: 6px 12px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onclick="submitMakerClaim(${item.rowId}, '${s.d}', '${s.t}', '${item.device}')">認領此時段</button>
+                            </div>`;
+                        }
+                    });
+                }
             } else {
-                // 已認領/總班表區：顯示確定的時段與志工 (修改為靠左緊湊排列)
+                // 已認領/總班表區：顯示確定的時段與志工
+                let subBadge = item.isSub ? '<span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 5px; font-size: 12px; font-weight: bold; margin-left: auto;">🆘 徵求代班中</span>' : '';
+                let boxBg = item.isSub ? '#fff5f5' : '#d4edda';
+                let boxBorder = item.isSub ? '#feb2b2' : '#c3e6cb';
+                let boxText = item.isSub ? '#c53030' : '#155724';
+                let boxDashed = item.isSub ? '#feb2b2' : '#b1dfbb';
+
                 assignedHtml = `
-                <div style="border: 1px solid #c3e6cb; border-radius: 8px; padding: 12px; background: #d4edda; color: #155724; display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">
-                    <div style="display:flex; align-items: center; gap: 10px;">
+                <div style="border: 1px solid ${boxBorder}; border-radius: 8px; padding: 12px; background: ${boxBg}; color: ${boxText}; display: flex; flex-direction: column; gap: 8px; margin-top: 15px;">
+                    <div style="display:flex; align-items: center; gap: 10px; width: 100%;">
                         <span style="font-weight: bold; font-size: 13px;">✔️ 核准時段：</span>
-                        <span style="font-weight: bold; font-size: 15px; color: #0f5132;">${item.approvedDate} ${item.approvedTime}</span>
+                        <span style="font-weight: bold; font-size: 15px; color: inherit;">${item.approvedDate} ${item.approvedTime}</span>
+                        ${subBadge}
                     </div>
-                    <div style="display:flex; align-items: center; gap: 10px; border-top: 1px dashed #b1dfbb; padding-top: 8px;">
+                    <div style="display:flex; align-items: center; gap: 10px; border-top: 1px dashed ${boxDashed}; padding-top: 8px;">
                         <span style="font-weight: bold; font-size: 13px;">🙋‍♂️ 值班志工：</span>
-                        <span style="font-weight: bold; font-size: 15px; color: #0f5132;">${item.assignedVol}</span>
+                        <span style="font-weight: bold; font-size: 15px; color: inherit;">${item.assignedVol}</span>
                     </div>
                 </div>`;
             }
@@ -1727,7 +1749,9 @@ function createScheduleCard(shift) {
                             }
                         } else {
                             if (v.isSub) {
-                                tagsHtml += `<button class="btn-sm" style="background:#dc3545; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: ${tagFontSize};" onclick="submitTakeSubstitute('${v.recordRow}', '${slot.actDetails}')">🆘 ${v.name} 徵求代班 (點擊接手)</button>`;
+                                // 【修正】將引號進行安全逸出，避免破壞 HTML onclick 語法
+                                let safeDetails = slot.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                                tagsHtml += `<button class="btn-sm" style="background:#dc3545; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: ${tagFontSize};" onclick="submitTakeSubstitute('${v.recordRow}', '${safeDetails}')">🆘 ${v.name} 徵求代班 (點擊接手)</button>`;
                             } else {
                                 tagsHtml += `<span class="vol-tag" style="background:#e9ecef; color:#333; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize};">✔️ ${v.name} ${slot.role}</span>`;
                             }
