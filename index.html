@@ -287,10 +287,15 @@
         <select id="calendarFilter" class="filter-select" onchange="renderCalendar()">
             </select>
 
-        <div style="text-align: center; margin-top: -5px; margin-bottom: 15px; padding: 8px 10px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; justify-content: center; align-items: center;">
+        <div style="text-align: center; margin-top: -5px; margin-bottom: 15px; padding: 8px 10px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 8px; justify-content: center; align-items: center;">
             <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; font-size: 14.5px; color: #555; margin: 0;">
                 <input type="checkbox" id="chkCalendarCompact" onchange="toggleCalendarCompact()" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
                 📐 啟動緊湊模式 (縮小版面/字型)
+            </label>
+            <div style="border-top: 1px dashed #eee; width: 100%;"></div>
+            <label style="display: flex; align-items: center; gap: 8px; font-weight: bold; cursor: pointer; font-size: 14.5px; color: #2b8a3e; margin: 0;">
+                <input type="checkbox" id="chkCalendarEmptyOnly" onchange="toggleCalendarEmptyOnly()" style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                ✅ 僅顯示有空缺/徵代班的時段
             </label>
         </div>
         <!-- 【新增】批次選班分享控制按鈕 (僅館員可見) -->
@@ -372,6 +377,12 @@
     function toggleCalendarCompact() {
         isCalendarCompactMode = document.getElementById('chkCalendarCompact').checked;
         renderCalendar(); // 重新渲染總班表
+    }
+
+    let showOnlyEmptyCalendar = false;
+    function toggleCalendarEmptyOnly() {
+        showOnlyEmptyCalendar = document.getElementById('chkCalendarEmptyOnly').checked;
+        renderCalendar();
     }
 
     // 1. 在函式外面定義計時器變數 (確保全域可用)
@@ -1826,24 +1837,27 @@ function createScheduleCard(shift) {
                 
                 // 1. 如果是館員，直接進入下拉選單篩選邏輯
                 if (userRole === "staff") {
-                    if (filterVal === 'all') return true;
-                    return act.actType === filterVal;
+                    if (filterVal !== 'all' && act.actType !== filterVal) return false;
+                } else {
+                    // 2. 如果是志工，先進行「權限隔離」
+                    let hasPermission = false;
+                    if (myGroups.includes('活動組') && (act.actType === '一般' || act.actType === '導覽')) hasPermission = true;
+                    if ((myGroups.includes('故事') || myGroups.includes('蛙寶')) && act.actType === '蛙寶') hasPermission = true;
+                    if (myGroups.includes('五感') && act.actType === '五感') hasPermission = true;
+                    if (myGroups.includes('創客') && (act.actType === '創客課程' || act.actType === '創客讀者預約' || act.actType === '培訓')) hasPermission = true;
+
+                    if (!hasPermission) return false;
+
+                    if (filterVal !== 'all' && act.actType !== filterVal) return false;
                 }
 
-                // 2. 如果是志工，先進行「權限隔離」
-                let hasPermission = false;
-                if (myGroups.includes('活動組') && (act.actType === '一般' || act.actType === '導覽')) hasPermission = true;
-                if ((myGroups.includes('故事') || myGroups.includes('蛙寶')) && act.actType === '蛙寶') hasPermission = true;
-                if (myGroups.includes('五感') && act.actType === '五感') hasPermission = true;
-                if (myGroups.includes('創客') && (act.actType === '創客課程' || act.actType === '創客讀者預約' || act.actType === '培訓')) hasPermission = true;
+                // 3. 額外過濾：如果開啟了「僅顯示有空缺/徵代班的時段」
+                if (showOnlyEmptyCalendar) {
+                    const hasGap = act.slots.some(slot => slot.remain > 0 || slot.vols.some(v => v.isSub));
+                    if (!hasGap) return false;
+                }
 
-                // 如果志工根本沒這組的權限，直接過濾掉（不顯示）
-                if (!hasPermission) return false;
-
-                // 3. 通過權限檢查後，再根據下拉選單過濾
-                if (filterVal === 'all') return true;
-                return act.actType === filterVal;
-                
+                return true;
             }).sort((a, b) => {
                 // 將時間字串 (如 9:30) 轉換為分鐘數，以便進行數字大小排序
                 function getMins(tStr) {
@@ -2844,9 +2858,9 @@ function createScheduleCard(shift) {
         const flexMessage = {
             type: "flex",
             altText: "📢 志工空班批次徵求填班！",
-            contents: {
+            contents: bubbles.length === 1 ? bubbles[0] : {
                 type: "carousel",
-                bubbles: bubbles
+                contents: bubbles
             }
         };
 
