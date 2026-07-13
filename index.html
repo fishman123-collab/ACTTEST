@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -1472,12 +1472,15 @@ function createScheduleCard(shift) {
     const isHistoryMode = sessionStorage.getItem("isVolHistoryMode") === "true";
     
     if (!isHistoryMode) {
+        // 【修正】將引號進行安全逸出，避免破壞 HTML onclick 語法
+        let safeDetails = shift.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+        
         if (shift.status === '徵求代班') {
-            btnHtml = `<button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${shift.actDetails}')">🔙 撤回代班請求 (恢復值勤)</button>`;
+            btnHtml = `<button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${safeDetails}')">🔙 撤回代班請求 (恢復值勤)</button>`;
         } else if (shift.isDirectCancel) {
-            btnHtml = `<button class="btn-book" style="background-color: #dc3545;" onclick="submitAskSubstitute('${shift.recordRow}', '${shift.actDetails}', true)">直接取消 (名額釋出)</button>`;
+            btnHtml = `<button class="btn-book" style="background-color: #dc3545;" onclick="submitAskSubstitute('${shift.recordRow}', '${safeDetails}', true)">直接取消 (名額釋出)</button>`;
         } else {
-            btnHtml = `<button class="btn-book" style="background-color: #ff9800;" onclick="submitAskSubstitute('${shift.recordRow}', '${shift.actDetails}', false)">我要請假 (徵求代班)</button>`;
+            btnHtml = `<button class="btn-book" style="background-color: #ff9800;" onclick="submitAskSubstitute('${shift.recordRow}', '${safeDetails}', false)">我要請假 (徵求代班)</button>`;
         }
     }
 
