@@ -707,6 +707,12 @@
         const lineId = sessionStorage.getItem("volLineId");
         const name = sessionStorage.getItem("volName");
         
+        const role = sessionStorage.getItem("userRole");
+        if (role === "staff") {
+            openVolSelectorModal({ type: "claimMaker", rowId: rowId, selDate: selDate, selTime: selTime, device: device });
+            return;
+        }
+        
         // 使用原生 confirm，但文字乾淨俐落，無 \n 雜亂問題
         if (confirm(`最終確認：\n\n您確定要認領此任務嗎？\n\n📌 設備：${device}\n📅 時段：${selDate} ${selTime}`)) {
             showLoading();
@@ -1059,6 +1065,13 @@
     function submitBooking(actIndex, actDetails, actType) {
         const lineId = sessionStorage.getItem("volLineId"); const name = sessionStorage.getItem("volName");
         if (!lineId) { alert("登入資訊遺失，請重新開啟 LINE 介面！"); return; }
+        
+        const role = sessionStorage.getItem("userRole");
+        if (role === "staff") {
+            openVolSelectorModal({ type: "bookShift", actIndex: actIndex, actDetails: actDetails, actType: actType });
+            return;
+        }
+        
         if (confirm(`確定要填班：\n${actDetails} 嗎？`)) {
             showLoading();
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "bookShift", lineId: lineId, name: name, actIndex: actIndex, actDetails: actDetails, actType: actType }) })
@@ -1087,6 +1100,12 @@
         const lineId = sessionStorage.getItem("volLineId"); const name = sessionStorage.getItem("volName");
         // 【新增這行】
     const cleanDetails = actDetails.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '');
+    
+    const role = sessionStorage.getItem("userRole");
+    if (role === "staff") {
+        openVolSelectorModal({ type: "takeSubstitute", recordRow: recordRow, actDetails: actDetails });
+        return;
+    }
     
     if (confirm(`確定要接手這個代班嗎？\n(您的姓名將會取代原志工)\n\n📅 班次資訊：\n${cleanDetails}`)) { // <--- 這裡改用 cleanDetails
         showLoading();
@@ -1786,7 +1805,8 @@ function createScheduleCard(shift) {
                             tagsHtml += `<button class="btn-sm" style="background:${btnColor}; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-size: ${tagFontSize};" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')" ${disabledAttr}>${btnText}</button>`;
                         }
                     } else if (slot.remain > 0) {
-                        tagsHtml += `<span class="vol-tag" style="background:transparent; border: 1px dashed #ccc; color:#999; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize};">尚有 ${slot.remain} 個空缺 ${slot.role}</span>`;
+                        // 【修正】館員可以點選空班進行指派志工 (強制填班)
+                        tagsHtml += `<button class="btn-sm" style="background:transparent; border: 1px dashed #28a745; color:#28a745; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize}; cursor:pointer; font-weight:bold;" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')">➕ 指派志工 (${slot.remain})</button>`;
                     }
                 });
 
@@ -2110,6 +2130,183 @@ function createScheduleCard(shift) {
         document.getElementById('calendarOptionsModal').style.display = 'none';
     }
 
+    // --- 【新增】館員強制填班的相關邏輯 ---
+    let globalVolunteerListCache = null;
+    let currentForceBookingContext = null;
+
+    function openVolSelectorModal(context) {
+        currentForceBookingContext = context;
+        
+        // 重設篩選器欄位
+        document.getElementById('volSearchKeyword').value = '';
+        document.getElementById('volSearchGroup').value = 'all';
+        
+        const showModal = () => {
+            document.getElementById('volunteerSelectorModal').style.display = 'flex';
+            filterVolunteers();
+        };
+
+        if (!globalVolunteerListCache) {
+            fetchVolunteerList(showModal);
+        } else {
+            showModal();
+        }
+    }
+
+    function closeVolSelectorModal() {
+        document.getElementById('volunteerSelectorModal').style.display = 'none';
+        currentForceBookingContext = null;
+    }
+
+    function fetchVolunteerList(callback) {
+        const lineId = sessionStorage.getItem("volLineId");
+        showLoading();
+        fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: "getVolunteerList", lineId: lineId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            if (data.status === "success") {
+                globalVolunteerListCache = data.data;
+                if (callback) callback();
+            } else {
+                alert("⚠️ 讀取志工清單失敗：" + data.message);
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            alert("⚠️ 網路錯誤，無法載入志工名單。");
+        });
+    }
+
+    function populateVolunteers(vols) {
+        const select = document.getElementById('volSelectDropdown');
+        select.innerHTML = '<option value="">-- 請選擇志工 --</option>';
+        vols.forEach(v => {
+            const option = document.createElement('option');
+            option.value = JSON.stringify({ lineId: v.lineId, name: v.name });
+            
+            // 格式化顯示名稱，與圖示一致
+            let display = v.name;
+            if (v.lineName) display += ` (${v.lineName})`;
+            else if (v.phone) display += ` (${v.phone})`;
+            
+            option.innerText = display;
+            select.appendChild(option);
+        });
+    }
+
+    function filterVolunteers() {
+        if (!globalVolunteerListCache) return;
+        
+        const kw = document.getElementById('volSearchKeyword').value.toLowerCase().trim();
+        const group = document.getElementById('volSearchGroup').value;
+        
+        const filtered = globalVolunteerListCache.filter(v => {
+            // 組別篩選
+            if (group !== 'all') {
+                if (!v.groups || !v.groups.includes(group)) return false;
+            }
+            
+            // 關鍵字搜尋：姓名, LINE名稱, 電話, Email
+            if (kw) {
+                const nameMatch = v.name && v.name.toLowerCase().includes(kw);
+                const lineNameMatch = v.lineName && v.lineName.toLowerCase().includes(kw);
+                const phoneMatch = v.phone && v.phone.includes(kw);
+                const emailMatch = v.email && v.email.toLowerCase().includes(kw);
+                return nameMatch || lineNameMatch || phoneMatch || emailMatch;
+            }
+            return true;
+        });
+        
+        populateVolunteers(filtered);
+    }
+
+    function confirmForceBooking() {
+        const val = document.getElementById('volSelectDropdown').value;
+        if (!val) {
+            alert("⚠️ 請選擇欲指派的志工！");
+            return;
+        }
+        const vol = JSON.parse(val);
+        const staffLineId = sessionStorage.getItem("volLineId");
+        
+        // 彈出二重確認框，保護高齡操作
+        if (!confirm(`最終確認：\n\n您確定要強制指派 志工【${vol.name}】值此班次嗎？`)) {
+            return;
+        }
+        
+        showLoading();
+        let payload = {};
+        if (currentForceBookingContext.type === "bookShift") {
+            payload = {
+                action: "staffForceBookShift",
+                lineId: staffLineId,
+                volLineId: vol.lineId,
+                volName: vol.name,
+                actIndex: currentForceBookingContext.actIndex,
+                actDetails: currentForceBookingContext.actDetails,
+                actType: currentForceBookingContext.actType
+            };
+        } else if (currentForceBookingContext.type === "claimMaker") {
+            payload = {
+                action: "staffForceClaimMakerTask",
+                lineId: staffLineId,
+                volLineId: vol.lineId,
+                volName: vol.name,
+                rowId: currentForceBookingContext.rowId,
+                selDate: currentForceBookingContext.selDate,
+                selTime: currentForceBookingContext.selTime
+            };
+        } else if (currentForceBookingContext.type === "takeSubstitute") {
+            payload = {
+                action: "staffForceTakeSubstitute",
+                lineId: staffLineId,
+                volLineId: vol.lineId,
+                volName: vol.name,
+                recordRow: currentForceBookingContext.recordRow
+            };
+        }
+        
+        fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            closeVolSelectorModal();
+            if (data.status === "success") {
+                alert("🎉 強制加入成功！");
+                if (currentForceBookingContext.type === "claimMaker") {
+                    fetchMakerMatches();
+                } else {
+                    if (document.getElementById('calendarPanel').style.display === 'block') openCalendar();
+                    else fetchActivities();
+                }
+            } else {
+                alert("⚠️ 強制加入失敗：\n" + data.message);
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            alert("⚠️ 網路連線逾時，強制加入失敗。");
+        });
+    }
+
+    // 註冊關鍵字與組別變更時的自動篩選
+    document.addEventListener("DOMContentLoaded", () => {
+        const keywordInput = document.getElementById('volSearchKeyword');
+        const groupSelect = document.getElementById('volSearchGroup');
+        const confirmBtn = document.getElementById('btnVolSelectConfirm');
+        
+        if (keywordInput) keywordInput.addEventListener('input', filterVolunteers);
+        if (groupSelect) groupSelect.addEventListener('change', filterVolunteers);
+        if (confirmBtn) confirmBtn.addEventListener('click', confirmForceBooking);
+    });
+
 </script>
 
     <!-- 【新增】填班成功的行事曆對話框 -->
@@ -2138,6 +2335,46 @@ function createScheduleCard(shift) {
                 <button id="btnOptGoogle" class="btn" style="display: block; background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📅 Google 行事曆</button>
                 <button id="btnOptApple" class="btn" style="display: block; background-color: #000000; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">🍏 Apple / Outlook 行事曆</button>
                 <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeCalendarOptions()">關閉視窗</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 【新增】館員強制幫志工填班的選擇視窗 -->
+    <div id="volunteerSelectorModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+        <div style="background-color: white; padding: 25px; border-radius: 12px; max-width: 95%; width: 380px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); font-family: '微軟正黑體', sans-serif; box-sizing: border-box; text-align: left;">
+            <div style="font-size: 20px; font-weight: bold; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+                <span>🛠️ 館員指派志工填班</span>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 15px;">🔍 關鍵字搜尋：</label>
+                <input type="text" id="volSearchKeyword" placeholder="可輸入姓名,職稱,電話,Email,LINE名" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;">
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 15px;">👥 選擇組別：</label>
+                <select id="volSearchGroup" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; font-weight: bold; color: #2b8a3e;">
+                    <option value="all">-- 所有組別 --</option>
+                    <option value="活動組">活動組</option>
+                    <option value="故事組">故事組</option>
+                    <option value="導覽組">導覽組</option>
+                    <option value="圖書組">圖書組</option>
+                    <option value="館發組">館發組</option>
+                    <option value="五感">五感</option>
+                    <option value="創客">創客</option>
+                </select>
+            </div>
+            
+            <div style="margin-bottom: 25px;">
+                <label style="font-weight: bold; color: #333; display: block; margin-bottom: 8px; font-size: 15px;">👤 選擇志工：</label>
+                <select id="volSelectDropdown" style="width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; font-weight: bold; color: #2b8a3e;">
+                    <option value="">-- 所有名單 --</option>
+                </select>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button id="btnVolSelectConfirm" class="btn" style="display: block; background-color: #28a745; color: white; margin: 0; padding: 12px; font-weight: bold; border-radius: 6px; flex: 1; border: none; cursor: pointer;">確認填班</button>
+                <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 0; padding: 12px; font-weight: bold; border-radius: 6px; flex: 1; border: none; cursor: pointer;" onclick="closeVolSelectorModal()">取消</button>
             </div>
         </div>
     </div>
