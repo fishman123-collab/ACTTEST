@@ -293,6 +293,8 @@
                 📐 啟動緊湊模式 (縮小版面/字型)
             </label>
         </div>
+        <!-- 【新增】批次選班分享控制按鈕 (僅館員可見) -->
+        <button id="btnToggleBatchMode" class="btn" style="display: none; background-color: #28a745; color: white; width: 100%; margin-top: -5px; margin-bottom: 15px; padding: 10px; font-weight: bold; border-radius: 8px; border: none; cursor: pointer; font-size: 14.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);" onclick="toggleBatchShareMode()">📦 啟動批次分享模式 (關閉中)</button>
 
         <div id="calendarList">讀取中...</div>
     </div>
@@ -328,6 +330,7 @@
         <div id="staffModalContent" style="line-height: 1.4; color: #444; font-size: 14px; overflow-y: auto; margin-bottom: 12px; padding-right: 5px;"></div>
         
         <div style="flex-shrink: 0;">
+            <button id="btnStaffShareSub" class="btn-book" style="background-color: #ff9800; width: 100%; margin-bottom: 8px; font-weight: bold; padding: 10px; border: none; color: white; border-radius: 5px; display: none;">📢 轉發分享此代班卡片</button>
             <button class="btn-book" style="background-color: #dc3545; width: 100%; margin-bottom: 8px; font-weight: bold; padding: 10px; border: none; color: white; border-radius: 5px;" onclick="executeStaffCancel()">⚠️ 強制取消此排班</button>
             <button class="btn" style="background-color: #6c757d; width: 100%; display: block; margin: 0; font-weight: bold; padding: 10px; border: none; color: white; border-radius: 5px;" onclick="closeStaffModal()">🔙 關閉視窗</button>
         </div>
@@ -537,6 +540,7 @@
     }
 
     function goBackToMain() {
+        exitBatchShareMode();
         document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('masterPanel').style.display = 'none';
         document.getElementById('myPanel').style.display = 'none';
@@ -1566,7 +1570,10 @@ function createScheduleCard(shift) {
     
     if (!isHistoryMode) {
         if (shift.status === '徵求代班') {
-            btnHtml = `<button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${safeDetails}')">🔙 撤回代班請求 (恢復值勤)</button>`;
+            btnHtml = `
+                <button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${safeDetails}')">🔙 撤回代班請求 (恢復值勤)</button>
+                <button class="btn-book" style="background-color: #ff9800; margin-top: 5px; color: white;" onclick="openShareSubstituteModal('${shift.recordRow}', '${safeDetails}')">📢 轉發分享代班卡片</button>
+            `;
         } else if (shift.isDirectCancel) {
             btnHtml = `<button class="btn-book" style="background-color: #dc3545;" onclick="submitAskSubstitute('${shift.recordRow}', '${safeDetails}', true)">直接取消 (名額釋出)</button>`;
         } else {
@@ -1596,6 +1603,7 @@ function createScheduleCard(shift) {
         : `確定要請假這個排班嗎？\n\n⚠️ 由於已超過自由取消期限，\n系統將為您轉為【徵求代班】狀態。\n(需等其他志工接手才算請假成功喔！)\n\n📅 班次資訊：\n${cleanDetails}`;
 
         if (confirm(confirmMsg)) {
+            showLoading();
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "askSubstitute", lineId: lineId, recordRow: recordRow }) })
             .then(res => res.json()).then(data => {
                 hideLoading();
@@ -1628,6 +1636,7 @@ function createScheduleCard(shift) {
     }
 
     function openCalendar() {
+        exitBatchShareMode();
         document.getElementById('staffPanel').style.display = 'none';
         document.getElementById('buttonArea').style.display = 'none';
         document.getElementById('calendarPanel').style.display = 'block';
@@ -1642,6 +1651,11 @@ function createScheduleCard(shift) {
         const historyArea = document.getElementById('staffHistoryArea');
         if (historyArea) {
             historyArea.style.display = (userRole === 'staff') ? 'block' : 'none';
+        }
+        
+        const batchBtn = document.getElementById('btnToggleBatchMode');
+        if (batchBtn) {
+            batchBtn.style.display = (userRole === 'staff') ? 'block' : 'none';
         }
         
         const filterDropdown = document.getElementById('calendarFilter');
@@ -1810,25 +1824,21 @@ function createScheduleCard(shift) {
                 let tagsHtml = '';
                 
                 act.slots.forEach(slot => {
+                    let safeDetails = slot.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                     slot.vols.forEach(v => {
                         if (userRole === "staff") {
                             let statusText = v.isSub ? '🆘 (徵求代班)' : '✔️';
                             let bgColor = v.isSub ? '#dc3545' : '#e9ecef';
                             let textColor = v.isSub ? 'white' : '#333';
                             
-                            // 【關鍵修正】把單引號、雙引號進行安全逸出，避免破壞 HTML onclick 語法
-                            let safeDetails = slot.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                            
                             const isStaffHistoryMode = sessionStorage.getItem("isStaffHistoryMode") === "true";
                             if (isStaffHistoryMode) {
                                 tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: default; padding: ${tagPadding}; font-size: ${tagFontSize}; margin: ${tagMargin};">${statusText} ${v.name} ${slot.role}</span>`;
                             } else {
-                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: ${tagPadding}; font-size: ${tagFontSize}; margin: ${tagMargin};" onclick="staffManageVol('${v.name}', '${v.phone}', '${v.lineName}', '${v.recordRow}', '${safeDetails}')">${statusText} ${v.name} ${slot.role}</span>`;
+                                tagsHtml += `<span class="vol-tag" style="background:${bgColor}; color:${textColor}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: ${tagPadding}; font-size: ${tagFontSize}; margin: ${tagMargin};" onclick="staffManageVol('${v.name}', '${v.phone}', '${v.lineName}', '${v.recordRow}', '${safeDetails}', ${v.isSub || false})">${statusText} ${v.name} ${slot.role}</span>`;
                             }
                         } else {
                             if (v.isSub) {
-                                // 【修正】將引號進行安全逸出，避免破壞 HTML onclick 語法
-                                let safeDetails = slot.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
                                 tagsHtml += `<button class="btn-sm" style="background:#dc3545; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.2); font-size: ${tagFontSize};" onclick="submitTakeSubstitute('${v.recordRow}', '${safeDetails}')">🆘 ${v.name} 徵求代班 (點擊接手)</button>`;
                             } else {
                                 tagsHtml += `<span class="vol-tag" style="background:#e9ecef; color:#333; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize};">✔️ ${v.name} ${slot.role}</span>`;
@@ -1844,8 +1854,20 @@ function createScheduleCard(shift) {
                             tagsHtml += `<button class="btn-sm" style="background:${btnColor}; color:white; border:none; border-radius:15px; padding: ${tagPadding}; margin: ${tagMargin}; cursor:pointer; font-size: ${tagFontSize};" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')" ${disabledAttr}>${btnText}</button>`;
                         }
                     } else if (slot.remain > 0) {
-                        // 【修正】館員可以點選空班進行指派志工 (強制填班)
-                        tagsHtml += `<button class="btn-sm" style="background:transparent; border: 1px dashed #28a745; color:#28a745; padding: ${tagPadding}; border-radius:15px; margin: ${tagMargin}; font-size: ${tagFontSize}; cursor:pointer; font-weight:bold;" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')">➕ 指派志工 (${slot.remain})</button>`;
+                        if (isBatchShareMode) {
+                            const isChecked = selectedBatchShifts.some(item => item.index === act.index && item.details === slot.actDetails);
+                            const checkedAttr = isChecked ? 'checked' : '';
+                            tagsHtml += `
+                                <label style="display:inline-flex; align-items:center; background:#fff7e6; border:1px solid #ffd591; padding:${tagPadding}; border-radius:15px; margin:${tagMargin}; font-size:${tagFontSize}; cursor:pointer; font-weight:bold; color:#d46b08; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                                    <input type="checkbox" ${checkedAttr} style="margin-right:5px; transform: scale(1.1);" onchange="handleBatchCheckboxChange(this, '${act.index}', '${safeDetails}', '${act.actType}')"> 選擇此空班
+                                </label>
+                            `;
+                        } else {
+                            tagsHtml += `
+                                <button class="btn-sm" style="background:transparent; border: 1px dashed #28a745; color:#28a745; padding: ${tagPadding}; margin: ${tagMargin}; font-size: ${tagFontSize}; cursor:pointer; font-weight:bold;" onclick="submitBooking('${act.index}', '${slot.actDetails}', '${act.actType}')">➕ 指派 (${slot.remain})</button>
+                                <button class="btn-sm" style="background:transparent; border: 1px dashed #ff9800; color:#ff9800; padding: ${tagPadding}; margin: ${tagMargin}; font-size: ${tagFontSize}; cursor:pointer; font-weight:bold;" onclick="openShareEmptyShiftModal('${act.index}', '${slot.actDetails}', '${act.actType}')">📢 徵求</button>
+                            `;
+                        }
                     }
                 });
 
@@ -1861,10 +1883,23 @@ function createScheduleCard(shift) {
     }
 
     let currentCancelData = null; 
-    function staffManageVol(name, phone, lineName, recordRow, actDetails) {
+    function staffManageVol(name, phone, lineName, recordRow, actDetails, isSub) {
         currentCancelData = { name: name, recordRow: recordRow, volName: name };
         const modal = document.getElementById('staffModal');
         const contentArea = document.getElementById('staffModalContent');
+        
+        const shareSubBtn = document.getElementById('btnStaffShareSub');
+        if (shareSubBtn) {
+            if (isSub) {
+                shareSubBtn.style.display = 'block';
+                shareSubBtn.onclick = function() {
+                    closeStaffModal();
+                    openShareSubstituteModal(recordRow, actDetails, name);
+                };
+            } else {
+                shareSubBtn.style.display = 'none';
+            }
+        }
         
         const safeName = name || '未提供';
         const safePhone = phone || '無資料';
@@ -2349,14 +2384,19 @@ function createScheduleCard(shift) {
     });
 
     // --- 【新增】代班一鍵分享與連結跳轉確認邏輯 ---
-    function openShareSubstituteModal(recordRow, actDetails) {
+    function openShareSubstituteModal(recordRow, actDetails, overrideVolName) {
         const modal = document.getElementById('shareSubModal');
         const detailsText = document.getElementById('shareSubDetails');
         
         const cleanDetails = actDetails.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
         detailsText.innerText = cleanDetails;
         
-        const volName = sessionStorage.getItem("volName") || "";
+        // 還原為請假代班對話框樣式與主體顏色
+        modal.querySelector('h3').innerText = "徵求代班已啟動";
+        modal.querySelector('h3').style.color = "#ff9800";
+        modal.querySelector('p').innerHTML = "系統已將您的此班次設為「徵求代班」。<br><b>💡 建議：點選下方按鈕直接將精美的救援卡片分享至 LINE 群組，其他志工夥伴點選卡片中的按鈕即可一鍵幫您代班！</b>";
+        
+        const volName = overrideVolName || sessionStorage.getItem("volName") || "";
         
         // 生成通用跳轉連結
         const shareUrl = `https://liff.line.me/${LIFF_ID}?action=takeSub&recordRow=${recordRow}&details=${encodeURIComponent(cleanDetails)}`;
@@ -2463,23 +2503,296 @@ function createScheduleCard(shift) {
         modal.style.display = 'flex';
     }
 
+    function openShareEmptyShiftModal(actIndex, actDetails, actType) {
+        const modal = document.getElementById('shareSubModal');
+        const detailsText = document.getElementById('shareSubDetails');
+        
+        const cleanDetails = actDetails.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
+        detailsText.innerText = cleanDetails;
+        
+        // 修改對話框文字為綠色徵求風格
+        modal.querySelector('h3').innerText = "徵求填班已啟動";
+        modal.querySelector('h3').style.color = "#28a745";
+        modal.querySelector('p').innerHTML = "已生成此空班的「徵求填班」分享連結。<br><b>💡 建議：點選下方按鈕發送卡片至群組，其他志工夥伴點選卡片中的按鈕即可一鍵填此空班！</b>";
+        
+        const shareUrl = `https://liff.line.me/${LIFF_ID}?action=bookShift&actIndex=${actIndex}&actDetails=${encodeURIComponent(cleanDetails)}&actType=${actType}`;
+        const shareText = `📢 【志工空班徵求】\n📅 班次：\n${cleanDetails}\n\n👇 點擊下方連結立刻進行填班：\n${shareUrl}`;
+        
+        const flexMessage = {
+            type: "flex",
+            altText: "📢 志工空班徵求填班！",
+            contents: {
+                type: "bubble",
+                header: {
+                    type: "box",
+                    layout: "vertical",
+                    backgroundColor: "#28a745",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "📢 志工空班徵求",
+                            color: "#ffffff",
+                            weight: "bold",
+                            size: "lg"
+                        }
+                    ]
+                },
+                body: {
+                    type: "box",
+                    layout: "vertical",
+                    spacing: "md",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "📅 班次資訊：",
+                            weight: "bold",
+                            size: "sm",
+                            color: "#333333"
+                        },
+                        {
+                            type: "text",
+                            text: cleanDetails,
+                            wrap: true,
+                            size: "md",
+                            color: "#666666"
+                        }
+                    ]
+                },
+                footer: {
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                        {
+                            type: "button",
+                            style: "primary",
+                            color: "#28a745",
+                            action: {
+                                type: "uri",
+                                label: "➕ 立即點我填班",
+                                uri: shareUrl
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+
+        document.getElementById('btnShareSubLine').onclick = function() {
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                liff.shareTargetPicker([flexMessage])
+                .then(res => {
+                    if (res) alert("✅ 已成功分享空班到 LINE 群組！");
+                })
+                .catch(err => {
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        alert("⚠️ 分享失敗，已將分享文字與連結複製到您的剪貼簿，請手動貼上到 LINE 群組！");
+                    });
+                });
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert("📋 已將分享內容複製到剪貼簿，請手動貼上到 LINE 群組！");
+                });
+            }
+        };
+
+        document.getElementById('btnCopySubText').onclick = function() {
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert("📋 分享文字已複製到剪貼簿，請貼上到 LINE 群組！");
+            }).catch(err => {
+                alert("無法自動複製，請手動複製文字。");
+            });
+        };
+
+        modal.style.display = 'flex';
+    }
+
     function closeShareSubModal() {
         document.getElementById('shareSubModal').style.display = 'none';
+    }
+
+    // --- 【新增】批次分享模式 JS 邏輯 ---
+    let isBatchShareMode = false;
+    let selectedBatchShifts = [];
+
+    function toggleBatchShareMode() {
+        isBatchShareMode = !isBatchShareMode;
+        const btn = document.getElementById('btnToggleBatchMode');
+        const footer = document.getElementById('batchShareFooter');
+        
+        if (isBatchShareMode) {
+            btn.innerText = "📦 關閉批次分享模式 (啟用中)";
+            btn.style.backgroundColor = "#dc3545";
+            selectedBatchShifts = [];
+            document.getElementById('batchCountText').innerText = "0";
+            footer.style.display = "flex";
+        } else {
+            btn.innerText = "📦 啟動批次分享模式 (關閉中)";
+            btn.style.backgroundColor = "#28a745";
+            footer.style.display = "none";
+            selectedBatchShifts = [];
+        }
+        
+        renderCalendar(); // 重新渲染日曆以套用選取狀態
+    }
+
+    function exitBatchShareMode() {
+        isBatchShareMode = false;
+        const btn = document.getElementById('btnToggleBatchMode');
+        const footer = document.getElementById('batchShareFooter');
+        if (btn) {
+            btn.innerText = "📦 啟動批次分享模式 (關閉中)";
+            btn.style.backgroundColor = "#28a745";
+        }
+        if (footer) footer.style.display = "none";
+        selectedBatchShifts = [];
+        if (document.getElementById('calendarPanel').style.display === 'block') {
+            renderCalendar();
+        }
+    }
+
+    function handleBatchCheckboxChange(cb, actIndex, actDetails, actType) {
+        if (cb.checked) {
+            selectedBatchShifts.push({ index: actIndex, details: actDetails, actType: actType });
+        } else {
+            selectedBatchShifts = selectedBatchShifts.filter(item => !(item.index === actIndex && item.details === actDetails));
+        }
+        document.getElementById('batchCountText').innerText = selectedBatchShifts.length;
+    }
+
+    function sendBatchShareCard() {
+        if (selectedBatchShifts.length === 0) {
+            alert("⚠️ 請先在日曆上勾選欲分享的空班！");
+            return;
+        }
+        if (selectedBatchShifts.length > 10) {
+            alert("⚠️ LINE 批次卡片發送上限為 10 個班次，請取消勾選部分班次！");
+            return;
+        }
+
+        const bubbles = selectedBatchShifts.map(item => {
+            const cleanDetails = item.details.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
+            const shareUrl = `https://liff.line.me/${LIFF_ID}?action=bookShift&actIndex=${item.index}&actDetails=${encodeURIComponent(cleanDetails)}&actType=${item.actType}`;
+            
+            return {
+                type: "bubble",
+                header: {
+                    type: "box",
+                    layout: "vertical",
+                    backgroundColor: "#28a745",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "📢 志工空班徵求",
+                            color: "#ffffff",
+                            weight: "bold",
+                            size: "lg"
+                        }
+                    ]
+                },
+                body: {
+                    type: "box",
+                    layout: "vertical",
+                    spacing: "md",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "📅 班次資訊：",
+                            weight: "bold",
+                            size: "sm",
+                            color: "#333333"
+                        },
+                        {
+                            type: "text",
+                            text: cleanDetails,
+                            wrap: true,
+                            size: "md",
+                            color: "#666666"
+                        }
+                    ]
+                },
+                footer: {
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                        {
+                            type: "button",
+                            style: "primary",
+                            color: "#28a745",
+                            action: {
+                                type: "uri",
+                                label: "➕ 立即點我填班",
+                                uri: shareUrl
+                            }
+                        }
+                    ]
+                }
+            };
+        });
+
+        const flexMessage = {
+            type: "flex",
+            altText: "📢 志工空班批次徵求填班！",
+            contents: {
+                type: "carousel",
+                bubbles: bubbles
+            }
+        };
+
+        // 備用純文字
+        let shareText = `📢 【志工空班批次徵求】\n\n`;
+        selectedBatchShifts.forEach((item, idx) => {
+            const cleanDetails = item.details.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
+            const shareUrl = `https://liff.line.me/${LIFF_ID}?action=bookShift&actIndex=${item.index}&actDetails=${encodeURIComponent(cleanDetails)}&actType=${item.actType}`;
+            shareText += `📌 [${idx + 1}] ${cleanDetails}\n👉 點我填班：${shareUrl}\n\n`;
+        });
+
+        if (liff.isApiAvailable('shareTargetPicker')) {
+            liff.shareTargetPicker([flexMessage])
+            .then(res => {
+                if (res) {
+                    alert("✅ 批次空班卡片已成功分享到 LINE 群組！");
+                    exitBatchShareMode();
+                }
+            })
+            .catch(err => {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert("⚠️ 系統分享失敗 (可能未開啟權限)。已將批次空班文字與連結複製到您的剪貼簿，請手動貼上到 LINE 群組！");
+                    exitBatchShareMode();
+                }).catch(() => {
+                    alert("⚠️ 無法自動複製，發送失敗。");
+                });
+            });
+        } else {
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert("📋 已將批次空班內容複製到您的剪貼簿，請手動貼上到 LINE 群組！");
+                exitBatchShareMode();
+            });
+        }
     }
 
     function checkUrlParameters() {
         const urlParams = new URLSearchParams(window.location.search);
         const action = urlParams.get('action');
-        const recordRow = urlParams.get('recordRow');
-        const details = urlParams.get('details');
         
-        if (action === 'takeSub' && recordRow) {
-            // 清除網址參數，避免重整時重複跳出
-            window.history.replaceState({}, document.title, window.location.pathname);
-            
-            setTimeout(() => {
-                submitTakeSubstitute(recordRow, details || "代班班次");
-            }, 500);
+        if (action === 'takeSub') {
+            const recordRow = urlParams.get('recordRow');
+            const details = urlParams.get('details');
+            if (recordRow) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                setTimeout(() => {
+                    submitTakeSubstitute(recordRow, details || "代班班次");
+                }, 500);
+            }
+        } else if (action === 'bookShift') {
+            const actIndex = urlParams.get('actIndex');
+            const actDetails = urlParams.get('actDetails');
+            const actType = urlParams.get('actType');
+            if (actIndex && actDetails) {
+                window.history.replaceState({}, document.title, window.location.pathname);
+                setTimeout(() => {
+                    submitBooking(actIndex, actDetails, actType || "一般");
+                }, 500);
+            }
         }
     }
 
@@ -2615,6 +2928,15 @@ function createScheduleCard(shift) {
                 <button id="btnCopySubText" class="btn" style="display: block; background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📋 複製文字手動貼上</button>
                 <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeShareSubModal()">關閉視窗</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 【新增】批次分享時的懸浮控制面板 -->
+    <div id="batchShareFooter" style="position: fixed; bottom: 0; left: 0; width: 100%; background: #ffffff; box-shadow: 0 -4px 12px rgba(0,0,0,0.15); padding: 15px; display: none; z-index: 9999; box-sizing: border-box; justify-content: space-between; align-items: center; border-radius: 12px 12px 0 0; font-family: '微軟正黑體', sans-serif;">
+        <div style="font-weight: bold; font-size: 15px; color: #333;">📦 已選擇 <span id="batchCountText" style="color: #28a745; font-size: 20px; font-weight: bold;">0</span> 個空班</div>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn" style="background-color: #28a745; color: white; padding: 10px 16px; font-weight: bold; border-radius: 6px; font-size: 14px; margin:0; border: none; cursor: pointer; display: block;" onclick="sendBatchShareCard()">📢 發送批次卡片</button>
+            <button class="btn" style="background-color: #6c757d; color: white; padding: 10px 16px; font-weight: bold; border-radius: 6px; font-size: 14px; margin:0; border: none; cursor: pointer; display: block;" onclick="exitBatchShareMode()">取消</button>
         </div>
     </div>
 
