@@ -437,6 +437,7 @@
         })
         .then(response => response.json())
         .then(data => {
+            hideLoading();
             if (data.status === "success") {
                 document.getElementById('statusMessage').innerText = `歡迎，${data.name}！`;
                 document.getElementById('verifyPanel').style.display = "none"; // 隱藏驗證面板
@@ -457,11 +458,23 @@
             } else { 
                 document.getElementById('statusMessage').innerText = data.message; 
             }
-        }).catch(error => { document.getElementById('statusMessage').innerText = "網路錯誤，無法連線。"; });
+        }).catch(error => { 
+            hideLoading();
+            document.getElementById('statusMessage').innerText = "網路錯誤，無法連線。"; 
+        });
     }
 
     function showButtonsByRole(userData) {
         sessionStorage.setItem("userRole", userData.role); 
+        
+        // 🚩 核心修正：每次重新渲染前，先隱藏所有區塊與按鈕，避免身分切換時殘留上一身分的按鈕與折疊面板！
+        document.getElementById('sec-activity').style.display = "none";
+        document.getElementById('sec-story').style.display = "none";
+        document.getElementById('sec-fivesenses').style.display = "none";
+        document.getElementById('sec-maker').style.display = "none";
+        document.getElementById('btn-calendar-view').style.display = "none";
+        document.getElementById('btn-my-schedule').style.display = "none";
+        document.getElementById('btn-staff-manage').style.display = "none";
         
         // 準備用來裝下拉選單選項的字串
         let filterOptions = `<option value="all">📂 顯示全部授權類別</option>`;
