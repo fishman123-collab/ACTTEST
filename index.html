@@ -438,6 +438,7 @@
                 document.getElementById('statusMessage').innerText = `歡迎，${data.name}！`;
                 document.getElementById('verifyPanel').style.display = "none"; // 隱藏驗證面板
                 showButtonsByRole(data); 
+                checkUrlParameters();
             } else if (data.status === "unregistered") {
                 // 【關鍵修改】找不到 ID 時，顯示驗證面板
                 document.getElementById('statusMessage').style.display = "none";
@@ -1572,11 +1573,16 @@ function createScheduleCard(shift) {
         : `確定要請假這個排班嗎？\n\n⚠️ 由於已超過自由取消期限，\n系統將為您轉為【徵求代班】狀態。\n(需等其他志工接手才算請假成功喔！)\n\n📅 班次資訊：\n${cleanDetails}`;
 
         if (confirm(confirmMsg)) {
-            showLoading();
             fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "askSubstitute", lineId: lineId, recordRow: recordRow }) })
             .then(res => res.json()).then(data => {
                 hideLoading();
-                if (data.status === "success") { alert("✅ " + data.message); fetchMySchedule(); } 
+                if (data.status === "success") { 
+                    alert("✅ " + data.message); 
+                    fetchMySchedule(); 
+                    if (!isDirectCancel) {
+                        openShareSubstituteModal(recordRow, actDetails);
+                    }
+                } 
                 else { alert("⚠️ 錯誤：\n" + data.message); }
             }).catch(err => { hideLoading(); alert("連線逾時。"); });
         }
@@ -2317,6 +2323,141 @@ function createScheduleCard(shift) {
         if (confirmBtn) confirmBtn.addEventListener('click', confirmForceBooking);
     });
 
+    // --- 【新增】代班一鍵分享與連結跳轉確認邏輯 ---
+    function openShareSubstituteModal(recordRow, actDetails) {
+        const modal = document.getElementById('shareSubModal');
+        const detailsText = document.getElementById('shareSubDetails');
+        
+        const cleanDetails = actDetails.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
+        detailsText.innerText = cleanDetails;
+        
+        const volName = sessionStorage.getItem("volName") || "";
+        
+        // 生成通用跳轉連結
+        const shareUrl = `https://liff.line.me/${LIFF_ID}?action=takeSub&recordRow=${recordRow}&details=${encodeURIComponent(cleanDetails)}`;
+        
+        // 1. 純文字分享內容 (備用，文字保留連結，但利用按鈕一鍵複製即可)
+        const shareText = `🆘 【志工代班救援】\n📅 班次：\n${cleanDetails}\n🙋‍♂️ 請求人：${volName}\n\n👇 點擊下方連結立刻接手代班：\n${shareUrl}`;
+        
+        // 2. LINE Flex Message 內容 (這會變成一張漂亮的卡片，且網址完全隱藏在按鈕之中！)
+        const flexMessage = {
+            type: "flex",
+            altText: "🆘 志工代班救援請求！",
+            contents: {
+                type: "bubble",
+                header: {
+                    type: "box",
+                    layout: "vertical",
+                    backgroundColor: "#dc3545",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "🆘 志工代班救援",
+                            color: "#ffffff",
+                            weight: "bold",
+                            size: "lg"
+                        }
+                    ]
+                },
+                body: {
+                    type: "box",
+                    layout: "vertical",
+                    spacing: "md",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "📅 班次資訊：",
+                            weight: "bold",
+                            size: "sm",
+                            color: "#333333"
+                        },
+                        {
+                            type: "text",
+                            text: cleanDetails,
+                            wrap: true,
+                            size: "md",
+                            color: "#666666"
+                        },
+                        {
+                            type: "text",
+                            text: `🙋‍♂️ 請求人：${volName}`,
+                            size: "sm",
+                            color: "#666666",
+                            margin: "sm"
+                        }
+                    ]
+                },
+                footer: {
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                        {
+                            type: "button",
+                            style: "primary",
+                            color: "#008CBA",
+                            action: {
+                                type: "uri",
+                                label: "🙋‍♂️ 立即接手此代班",
+                                uri: shareUrl
+                            }
+                        }
+                    ]
+                }
+            }
+        };
+
+        // 綁定按鈕點擊事件
+        document.getElementById('btnShareSubLine').onclick = function() {
+            if (liff.isApiAvailable('shareTargetPicker')) {
+                liff.shareTargetPicker([flexMessage])
+                .then(res => {
+                    if (res) alert("✅ 已成功分享到 LINE 群組！");
+                })
+                .catch(err => {
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        alert("⚠️ 系統分享失敗 (可能未開啟權限)。已將分享文字與連結複製到您的剪貼簿，請手動貼上到 LINE 群組！");
+                    }).catch(() => {
+                        alert("⚠️ 分享失敗，請手動複製下方文字與連結貼至群組。");
+                    });
+                });
+            } else {
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert("📋 已將分享內容複製到您的剪貼簿，請手動貼上到 LINE 群組！");
+                });
+            }
+        };
+
+        document.getElementById('btnCopySubText').onclick = function() {
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert("📋 分享文字已複製到剪貼簿，請貼到 LINE 群組！");
+            }).catch(err => {
+                alert("無法自動複製，請手動複製文字。");
+            });
+        };
+
+        modal.style.display = 'flex';
+    }
+
+    function closeShareSubModal() {
+        document.getElementById('shareSubModal').style.display = 'none';
+    }
+
+    function checkUrlParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+        const recordRow = urlParams.get('recordRow');
+        const details = urlParams.get('details');
+        
+        if (action === 'takeSub' && recordRow) {
+            // 清除網址參數，避免重整時重複跳出
+            window.history.replaceState({}, document.title, window.location.pathname);
+            
+            setTimeout(() => {
+                submitTakeSubstitute(recordRow, details || "代班班次");
+            }, 500);
+        }
+    }
+
 </script>
 
     <!-- 【新增】填班成功的行事曆對話框 -->
@@ -2385,6 +2526,24 @@ function createScheduleCard(shift) {
             <div style="display: flex; gap: 10px;">
                 <button id="btnVolSelectConfirm" class="btn" style="display: block; background-color: #28a745; color: white; margin: 0; padding: 12px; font-weight: bold; border-radius: 6px; flex: 1; border: none; cursor: pointer;">確認填班</button>
                 <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 0; padding: 12px; font-weight: bold; border-radius: 6px; flex: 1; border: none; cursor: pointer;" onclick="closeVolSelectorModal()">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 【新增】徵求代班成功的一鍵分享對話框 -->
+    <div id="shareSubModal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center;">
+        <div style="background-color: white; padding: 25px; border-radius: 12px; max-width: 90%; width: 350px; box-shadow: 0 4px 15px rgba(0,0,0,0.25); text-align: center; font-family: sans-serif; box-sizing: border-box;">
+            <div style="font-size: 50px; margin-bottom: 10px;">📢</div>
+            <h3 style="margin: 0 0 10px 0; color: #ff9800;">徵求代班已啟動</h3>
+            <p style="font-size: 14.5px; color: #555; margin: 0 0 15px 0; line-height: 1.5; text-align: left;">
+                系統已將您的此班次設為「徵求代班」。<br>
+                <b>💡 建議：點選下方按鈕直接將精美的救援卡片分享至 LINE 群組，其他志工夥伴點選卡片中的按鈕即可一鍵幫您代班！</b>
+            </p>
+            <p id="shareSubDetails" style="font-size: 13.5px; color: #666; margin: 0 0 20px 0; line-height: 1.5; text-align: left; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; word-break: break-all; max-height: 100px; overflow-y: auto;"></p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="btnShareSubLine" class="btn" style="display: block; background-color: #00B900; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📢 分享到 LINE 群組 (卡片按鈕)</button>
+                <button id="btnCopySubText" class="btn" style="display: block; background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📋 複製文字手動貼上</button>
+                <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeShareSubModal()">關閉視窗</button>
             </div>
         </div>
     </div>
