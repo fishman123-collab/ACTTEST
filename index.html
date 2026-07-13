@@ -23,6 +23,25 @@
         .vol-tag { display: inline-block; background: #e9ecef; color: #333; padding: 4px 10px; border-radius: 15px; font-size: 13px; margin: 2px 5px 2px 0; }
         .btn-sm { font-family: '微軟正黑體'; font-size: 13px; }
         
+        .btn-cal { 
+            background: #fff; color: #555; border: 1px solid #ddd; 
+            padding: 5px 10px; border-radius: 4px; cursor: pointer; 
+            font-size: 12px; margin: 5px; display: inline-flex; 
+            align-items: center; gap: 5px; transition: all 0.2s;
+        }
+        .btn-cal:hover { background: #f0f0f0; border-color: #bbb; }
+        .cal-options { 
+            display: none; position: absolute; background: white; 
+            border: 1px solid #ddd; border-radius: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            z-index: 1000; width: 150px; 
+        }
+        .cal-option { 
+            padding: 10px; cursor: pointer; font-size: 13px; 
+            border-bottom: 1px solid #eee; text-align: left;
+        }
+        .cal-option:hover { background: #f8f9fa; }
+        .cal-option:last-child { border-bottom: none; }
+        
         /* 讀取動畫遮罩樣式 */
         #loadingOverlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -372,9 +391,67 @@
     }
 
     // 1. 在函式外面定義計時器變數 (確保全域可用)
-    let loadingTimer1, loadingTimer2;
-
-    function showLoading() {
+\n    let loadingTimer1, loadingTimer2;
+\n    
+\n    // --- 行事曆功能核心 ---
+\n    function addToCalendar(event) {
+\n        const { title, date, time, details } = event;
+\n        const dateMatch = date.match(/(\\d{4})\\/(\\d{2})\\/(\\d{2})/);
+\n        if (!dateMatch) return alert('日期格式錯誤');
+\n        const isoDate = dateMatch[1] + dateMatch[2] + dateMatch[3];
+\n        const timeParts = time.split('-');
+\n        const startTime = timeParts[0].replace(':', '');
+\n        const endTime = timeParts[1] ? timeParts[1].replace(':', '') : startTime;
+\n        const startISO = isoDate + 'T' + startTime + '00';
+\n        const endISO = isoDate + 'T' + endTime + '00';
+\n
+\n        const optDiv = document.createElement('div');
+\n        optDiv.className = 'cal-options';
+\n        optDiv.innerHTML = `
+\n            <div class=\"cal-option\" onclick=\"window.open('https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${startISO}/${endISO}&details=${encodeURIComponent(details)}', '_blank'); this.parentElement.style.display='none';\">📅 Google 日曆</div>
+\n            <div class=\"cal-option\" onclick=\"downloadICal('${title}', '${date}', '${time}', '${details}'); this.parentElement.style.display='none';\">🍎 Apple / iCal</div>
+\n        `;
+\n        document.body.appendChild(optDiv);
+\n        const rect = event.element.getBoundingClientRect();
+\n        optDiv.style.left = rect.left + 'px';
+\n        optDiv.style.top = rect.bottom + 'px';
+\n        optDiv.style.display = 'block';
+\n
+\n        setTimeout(() => {
+\n            window.onclick = () => {
+\n                optDiv.style.display = 'none';
+\n                optDiv.remove();
+\n                window.onclick = null;
+\n            };
+\n        }, 10);
+\n    }
+\n
+\n    function downloadICal(title, date, time, details) {
+\n        const dateMatch = date.match(/(\\d{4})\\/(\\d{2})\\/(\\d{2})/);
+\n        const isoDate = dateMatch[1] + dateMatch[2] + dateMatch[3];
+\n        const timeParts = time.split('-');
+\n        const startT = timeParts[0].replace(':', '').padStart(4, '0');
+\n        const endT = timeParts[1] ? timeParts[1].replace(':', '').padStart(4, '0') : startT;
+\n        const icsContent = [
+\n            'BEGIN:VCALENDAR',
+\n            'VERSION:2.0',
+\n            'PRODID:-//Volunteer System//TW',
+\n            'BEGIN:VEVENT',
+\n            `SUMMARY:${title}`,
+\n            `DTSTART:${isoDate}T${startT}00`,
+\n            `DTEND:${isoDate}T${endT}00`,
+\n            `DESCRIPTION:${details}`,
+\n            'END:VEVENT',
+\n            'END:VCALENDAR'
+\n        ].join('\\n');
+\n        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+\n        const link = document.createElement('a');
+\n        link.href = window.URL.createObjectURL(blob);
+\n        link.download = 'event.ics';
+\n        link.click();
+\n    }
+\n
+\n    function showLoading() {
         // 顯示背景遮罩
         document.getElementById('loadingOverlay').style.display = 'flex';
         
