@@ -1485,7 +1485,7 @@
     }
 }
 
-    // 輔助函數：建立具有顏色區隔的個人排班卡片
+    // 輔支函數：建立具有顏色區隔的個人排班卡片
 function createScheduleCard(shift) {
     const card = document.createElement('div');
     card.className = 'activity-card';
@@ -1507,13 +1507,13 @@ function createScheduleCard(shift) {
     card.style.borderLeftColor = borderColor;
     card.style.backgroundColor = bgColor;
 
+    // 【修正】將引號進行安全逸出宣告於外層，避免歷史模式或區塊外 ReferenceError
+    let safeDetails = (shift.actDetails || "").replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
     let btnHtml = '';
     const isHistoryMode = sessionStorage.getItem("isVolHistoryMode") === "true";
     
     if (!isHistoryMode) {
-        // 【修正】將引號進行安全逸出，避免破壞 HTML onclick 語法
-        let safeDetails = shift.actDetails.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-        
         if (shift.status === '徵求代班') {
             btnHtml = `<button class="btn-book" style="background-color: #6c757d;" onclick="submitRetractSubstitute('${shift.recordRow}', '${safeDetails}')">🔙 撤回代班請求 (恢復值勤)</button>`;
         } else if (shift.isDirectCancel) {
@@ -2129,9 +2129,9 @@ function createScheduleCard(shift) {
             <p id="calendarModalMsg" style="font-size: 14.5px; color: #555; margin: 0 0 20px 0; line-height: 1.5; text-align: left; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; word-break: break-all; max-height: 150px; overflow-y: auto;"></p>
             <div style="font-size: 13px; color: #dc3545; font-weight: bold; margin-bottom: 15px; text-align: left;">💡 貼心提醒：iPhone 或 Google 行事曆會自動使用「獨特識別碼」檢查，重複點擊僅會更新行程，不會造成行事曆重複紊亂，請放心點擊！</div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button id="btnAddToGoogle" class="btn" style="background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📅 加入 Google 行事曆</button>
-                <button id="btnAddToApple" class="btn" style="background-color: #000000; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">🍏 加入 Apple / Outlook 行事曆</button>
-                <button class="btn" style="background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeCalendarModal()">關閉視窗</button>
+                <button id="btnAddToGoogle" class="btn" style="display: block; background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📅 加入 Google 行事曆</button>
+                <button id="btnAddToApple" class="btn" style="display: block; background-color: #000000; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">🍏 加入 Apple / Outlook 行事曆</button>
+                <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeCalendarModal()">關閉視窗</button>
             </div>
         </div>
     </div>
@@ -2144,9 +2144,9 @@ function createScheduleCard(shift) {
             <p id="calendarOptionsMsg" style="font-size: 14.5px; color: #555; margin: 0 0 20px 0; line-height: 1.5; text-align: left; background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #eee; word-break: break-all; max-height: 150px; overflow-y: auto;"></p>
             <div style="font-size: 13px; color: #dc3545; font-weight: bold; margin-bottom: 15px; text-align: left;">💡 貼心提醒：iPhone 或 Google 行事曆會自動使用「獨特識別碼」檢查，重複點擊僅會更新行程，不會造成行事曆重複紊亂，請放心點擊！</div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button id="btnOptGoogle" class="btn" style="background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📅 Google 行事曆</button>
-                <button id="btnOptApple" class="btn" style="background-color: #000000; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">🍏 Apple / Outlook 行事曆</button>
-                <button class="btn" style="background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeCalendarOptions()">關閉視窗</button>
+                <button id="btnOptGoogle" class="btn" style="display: block; background-color: #4285F4; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">📅 Google 行事曆</button>
+                <button id="btnOptApple" class="btn" style="display: block; background-color: #000000; color: white; margin: 0; padding: 12px; font-weight: bold; cursor: pointer; border: none; border-radius: 6px;">🍏 Apple / Outlook 行事曆</button>
+                <button class="btn" style="display: block; background-color: #6c757d; color: white; margin: 10px 0 0 0; padding: 10px; cursor: pointer; border: none; border-radius: 6px;" onclick="closeCalendarOptions()">關閉視窗</button>
             </div>
         </div>
     </div>
