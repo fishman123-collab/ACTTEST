@@ -424,12 +424,15 @@
     function checkUserRole(lineId, displayName) {
         sessionStorage.setItem("volLineId", lineId);
         document.getElementById('statusMessage').innerText = "驗證身分與權限中...";
+        
+        const simulateRole = sessionStorage.getItem("simulateRole") || "";
         fetch(GAS_URL, { 
             method: 'POST', 
             body: JSON.stringify({ 
                 action: "checkLogin", 
                 lineId: lineId, 
-                displayName: displayName // 【新增】傳送名稱
+                displayName: displayName,
+                simulateRole: simulateRole
             }) 
         })
         .then(response => response.json())
@@ -437,8 +440,15 @@
             if (data.status === "success") {
                 document.getElementById('statusMessage').innerText = `歡迎，${data.name}！`;
                 document.getElementById('verifyPanel').style.display = "none"; // 隱藏驗證面板
+                
+                // 如果是系統管理員，啟用身份切換能力
+                if (data.permission === "系統管理員") {
+                    sessionStorage.setItem("isSystemAdmin", "true");
+                }
+                
                 showButtonsByRole(data); 
                 checkUrlParameters();
+                renderAdminRoleSwitcher();
             } else if (data.status === "unregistered") {
                 // 【關鍵修改】找不到 ID 時，顯示驗證面板
                 document.getElementById('statusMessage').style.display = "none";
@@ -1632,7 +1642,8 @@ function createScheduleCard(shift) {
         sessionStorage.removeItem("isStaffHistoryMode");
         
         const lineId = sessionStorage.getItem("volLineId");
-        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getCalendarData", lineId: lineId }) })
+        const simulateRole = sessionStorage.getItem("simulateRole") || "";
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getCalendarData", lineId: lineId, simulateRole: simulateRole }) })
         .then(res => res.json())
         .then(data => {
             filterDropdown.disabled = false; // 🔓 【新增】資料抵達，解鎖下拉選單
@@ -1662,8 +1673,9 @@ function createScheduleCard(shift) {
         // 標記目前為歷史模式
         sessionStorage.setItem("isStaffHistoryMode", "true");
         const lineId = sessionStorage.getItem("volLineId");
+        const simulateRole = sessionStorage.getItem("simulateRole") || "";
         
-        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getCalendarData", lineId: lineId, startDate: startDate, endDate: endDate }) })
+        fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: "getCalendarData", lineId: lineId, startDate: startDate, endDate: endDate, simulateRole: simulateRole }) })
         .then(res => res.json())
         .then(data => {
             if (data.status === "success") {
@@ -2456,6 +2468,51 @@ function createScheduleCard(shift) {
                 submitTakeSubstitute(recordRow, details || "代班班次");
             }, 500);
         }
+    }
+
+    // --- 【新增】管理員角色模擬切換功能 ---
+    function renderAdminRoleSwitcher() {
+        if (sessionStorage.getItem("isSystemAdmin") !== "true") return;
+        
+        let switcher = document.getElementById('adminRoleSwitcher');
+        if (!switcher) {
+            switcher = document.createElement('div');
+            switcher.id = 'adminRoleSwitcher';
+            // 懸浮浮動置頂在右上角
+            switcher.style.cssText = "position: fixed; top: 12px; right: 12px; z-index: 99999; display: block;";
+            document.body.appendChild(switcher);
+        }
+        
+        const currentRole = sessionStorage.getItem("userRole");
+        const btnText = (currentRole === 'staff') ? "🔄 模擬志工" : "🔄 還原館員";
+        const btnBg = (currentRole === 'staff') ? "#28a745" : "#dc3545";
+        
+        switcher.innerHTML = `
+            <button class="btn" style="display: block; margin: 0; padding: 6px 14px; font-size: 13px; font-weight: bold; background-color: ${btnBg}; color: white; border: none; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); line-height: 1.4;" onclick="toggleAdminRole()">
+                ${btnText}
+            </button>
+        `;
+    }
+
+    function toggleAdminRole() {
+        const currentRole = sessionStorage.getItem("userRole");
+        const targetSimulate = (currentRole === 'staff') ? 'volunteer' : 'staff';
+        
+        if (targetSimulate === 'volunteer') {
+            if (!confirm("確定要將畫面與身分切換為「志工」來進行功能測試嗎？\n(請確保您的姓名或 LINE 帳號已登入於「志工名冊」中，方可順利模擬！)")) {
+                return;
+            }
+            sessionStorage.setItem("simulateRole", "volunteer");
+        } else {
+            sessionStorage.removeItem("simulateRole");
+        }
+        
+        const lineId = sessionStorage.getItem("volLineId");
+        const displayName = sessionStorage.getItem("lineDisplayName") || "";
+        
+        showLoading();
+        // 重新調用角色驗證流程以更新所有 UI 區塊與資料加載
+        checkUserRole(lineId, displayName);
     }
 
 </script>
