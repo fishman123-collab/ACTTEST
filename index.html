@@ -348,6 +348,22 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbz_KAUlvouZQKLlMG-gAH62hcbmF3arrzVSPiQgg4ipSm716BKTgt0gQtAnZyNyS2Y6qA/exec";
     // ========================================
 
+    // --- 核心工具：安全多重解碼 (修復 LINE LIFF 轉址時的 Double Encoding) ---
+    function safeDecodeString(str) {
+        if (!str) return "";
+        let decoded = str.toString();
+        try {
+            let count = 0;
+            while (count < 5 && decoded.indexOf('%') > -1 && /%[0-9A-Fa-f]{2}/.test(decoded)) {
+                let nextDecoded = decodeURIComponent(decoded);
+                if (nextDecoded === decoded) break;
+                decoded = nextDecoded;
+                count++;
+            }
+        } catch(e) {}
+        return decoded;
+    }
+
     // 儲存從 GAS 抓回來的原始資料，供前端篩選用
     let globalMyShifts = [];
     let globalCalendarData = {};
@@ -2202,7 +2218,7 @@ function createScheduleCard(shift) {
     
     // --- 【新增】加入行事曆相關工具函數 ---
     function parseEventTimes(actDetails) {
-        const cleanDetails = actDetails.replace(/<[^>]+>/g, ' '); 
+        const cleanDetails = safeDecodeString(actDetails).replace(/<[^>]+>/g, ' '); 
         const dateMatch = cleanDetails.match(/(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})/);
         if (!dateMatch) return null;
         
@@ -2249,8 +2265,8 @@ function createScheduleCard(shift) {
     function addToGoogleCalendar(title, actDetails) {
         const times = parseEventTimes(actDetails);
         if (!times) { alert("無法解析日期時間，請聯繫管理員！"); return; }
-        const cleanTitle = title.replace(/<[^>]+>/g, '').trim();
-        const cleanDetails = actDetails.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
+        const cleanTitle = safeDecodeString(title).replace(/<[^>]+>/g, '').trim();
+        const cleanDetails = safeDecodeString(actDetails).replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
         const url = `https://calendar.google.com/calendar/render?action=TEMPLATE` +
                     `&text=${encodeURIComponent(cleanTitle)}` +
                     `&dates=${times.start}/${times.end}` +
@@ -2262,8 +2278,8 @@ function createScheduleCard(shift) {
     function downloadIcsFile(title, actDetails, recordRow) {
         const times = parseEventTimes(actDetails);
         if (!times) { alert("無法解析日期時間，請聯繫管理員！"); return; }
-        const cleanTitle = title.replace(/<[^>]+>/g, '').trim();
-        const cleanDetails = actDetails.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
+        const cleanTitle = safeDecodeString(title).replace(/<[^>]+>/g, '').trim();
+        const cleanDetails = safeDecodeString(actDetails).replace(/<br>/g, '\n').replace(/<[^>]+>/g, '').trim();
         
         const url = GAS_URL + `?action=getIcs` +
                     `&title=${encodeURIComponent(cleanTitle)}` +
@@ -2922,11 +2938,14 @@ function createScheduleCard(shift) {
 
     function checkUrlParameters() {
         const urlParams = new URLSearchParams(window.location.search);
-        const action = urlParams.get('action');
+        const rawAction = urlParams.get('action');
+        const action = safeDecodeString(rawAction);
         
         if (action === 'takeSub') {
-            const recordRow = urlParams.get('recordRow');
-            const details = urlParams.get('details');
+            const rawRecordRow = urlParams.get('recordRow');
+            const rawDetails = urlParams.get('details');
+            const recordRow = safeDecodeString(rawRecordRow);
+            const details = safeDecodeString(rawDetails);
             if (recordRow) {
                 window.history.replaceState({}, document.title, window.location.pathname);
                 setTimeout(() => {
@@ -2934,9 +2953,14 @@ function createScheduleCard(shift) {
                 }, 500);
             }
         } else if (action === 'bookShift') {
-            const actIndex = urlParams.get('actIndex');
-            const actDetails = urlParams.get('actDetails');
-            const actType = urlParams.get('actType');
+            const rawIndex = urlParams.get('actIndex');
+            const rawDetails = urlParams.get('actDetails');
+            const rawType = urlParams.get('actType');
+            
+            const actIndex = safeDecodeString(rawIndex);
+            const actDetails = safeDecodeString(rawDetails);
+            const actType = safeDecodeString(rawType);
+            
             if (actIndex && actDetails) {
                 window.history.replaceState({}, document.title, window.location.pathname);
                 setTimeout(() => {
